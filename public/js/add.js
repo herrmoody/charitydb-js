@@ -17,3 +17,32 @@ function getZipInfo(zip_codes) {
     }
   }
 }
+
+function validateDate(element) {
+  var input_date = document.getElementById(element).value;
+  var date_parts = input_date.split("/");
+  if (date_parts.length != 3) {
+    alert("Please use date format mm/dd/yyyy");
+    document.getElementById(element).focus();
+  } else {
+    var input_year = parseInt(date_parts[2]);
+    var input_day = parseInt(date_parts[1]);
+    var input_month = parseInt(date_parts[0]);
+    if (isFinite(input_year) && isFinite(input_day) && isFinite(input_month)) {
+      if (element == "birthday") {
+        var early_date = new Date(1910, 1, 1);
+      } else {
+        var early_date = new Date(2000, 1, 1);
+      }
+      var late_date = new Date();
+      var test_date = new Date(input_year, input_month, input_day);
+      if ((test_date < early_date) || (test_date > late_date)) {
+        alert("Please enter a valid date in the format mm/dd/yyyy");
+        document.getElementById(element).focus();
+      }
+    } else {
+      alert("Please use date format mm/dd/yyyy");
+      document.getElementById(element).focus();
+    }
+  }
+}
