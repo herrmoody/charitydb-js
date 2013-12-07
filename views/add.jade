@@ -14,7 +14,7 @@ block main
       input(type="text",name="last_name")
     label
       |Head Date of Birth (mm/dd/yyyy)
-      input(type="text",name="birthday")
+      input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
     label
       |Home Phone Number
       input(type="text",name="phone")
@@ -34,5 +34,5 @@ block main
       span(id="state")
     label
       |Date of Initial Contact (mm/dd/yyyy)
-      input(type="text",name="initial_contact_date")
+      input(type="text",id="initial_contact_date",name="initial_contact_date",onBlur="validateDate('initial_contact_date')")
     input(type="submit",value="Submit")
