@@ -1,0 +1,21 @@
+extend view_edit_layout
+block header
+  form(method='POST',action='addedit')
+    input(type='text',name='last_name')
+
+block infoblock
+  p
+  |Hello there 
+  if first_name
+    |#{first_name} #{last_name}.
+  else
+    |anonymous person
+block familymembers
+
+block phonenumbers
+
+block contact
+
+block assistance
+
+block footer

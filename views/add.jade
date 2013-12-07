@@ -1,0 +1,38 @@
+extend add_layout
+block main
+  != "<script type='text/javascript'>"
+  != "var zip_code_list = {};"
+  each row in zip_codes
+    != "zip_code_list['" + row.zip_code + "'] = ['" + row.city + "','" + row.state + "'];"
+  != "</script>"
+  form(method="POST",action="add")
+    label
+      |Head First Name
+      input(type="text",name="first_name")
+    label
+      |Head Last Name
+      input(type="text",name="last_name")
+    label
+      |Head Date of Birth (mm/dd/yyyy)
+      input(type="text",name="birthday")
+    label
+      |Home Phone Number
+      input(type="text",name="phone")
+    label
+      |Street Address
+      input(type="text",name="address")
+    label
+      |Zip Code
+      select(id="zip",name="zip",onmouseup="getZipInfo(zip_code_list)")
+        each row in zip_codes
+          option(value="#{row.zip_code}")= row.zip_code
+    label
+      |City:
+      span(id="city")
+    label
+      |State:
+      span(id="state")
+    label
+      |Date of Initial Contact (mm/dd/yyyy)
+      input(type="text",name="initial_contact_date")
+    input(type="submit",value="Submit")

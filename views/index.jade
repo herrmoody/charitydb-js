@@ -1,0 +1,13 @@
+extend index_layout
+block main
+  h1
+  |Assistance Database
+  form(method="POST",action="viewedit")
+    input(type="text",name="basic_search")
+    input(type="submit",value="Submit")
+  a(href="javascript:newRecord()") Add a New Record
+block footer
+  ul
+    each row in cities
+      li
+        a(href="viewedit&city=#{row.city}")= row.city
