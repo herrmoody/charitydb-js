@@ -167,6 +167,23 @@ function getResults(query_array, function_array, object_set, callback) {
   return;
 }
 
+//* Insert data function - adds data to the database *//
+function insertData(query_array, function_array, object_set, callback) {
+
+  //Establish a connection to the database
+  var db = new sqlite3.Database(file,error);    
+
+  //Pop the variables off of the query_array and use them
+  var query_stuff = query_array.pop();
+  var set_name = query_stuff[0];
+  var query_text = query_stuff[1]
+
+  //Establish a serial database connection
+  db.serialize(function() {
+
+  });
+}
+
 ////////////////////
 //* Main Program *//
 ////////////////////
@@ -275,19 +292,130 @@ app.get('/add', function (req, res) {
 //page and either moves the user forward or forces
 //them to correct data
 app.post('/add', function (req, res) {
-  finishRequest = function(object_collection) {
-    res.render('add', object_collection);
-  }
-  var dataset = {};
-  ['invalid_fields'] = [];
-  if (req.body.first_name == "") {
-    dataset['invalid_fields'].push("first_name");
-  } else {
-    dataset['first_name'] = req.body.first_name;
-	dataset['family_id'] = 1;
+    finishRequest = function(object_collection) {
+	res.render('add', object_collection);
+    }
+
+    //Check fields for valid content
+
+    var dataset = {};
+    ['invalid_fields'] = [];
+
+    if (req.body.first_name == "") {
+	dataset['invalid_fields'].push("first_name");
+    } else {
+	dataset['first_name'] = req.body.first_name;
+    }
+
+    if (req.body.last_name == "") {
+	dataset['invalid_fields'].push("last_name");
+    } else {
+	dataset['last_name'] = req.body.last_name;
+    }
+
+    //Check to make sure that the birthday is valid
+    if (req.body.birthday == "") {
+        //If it's empty it's invalid
+	dataset['invalid_fields'].push("birthday");
+    } else {
+	var date_parts = req.body.birthday.split("/");
+	var today = new Date();
+	if (parseInt(date_parts[2]) < 100) {
+	    if (parseInt(date_parts[2]) <= (parseInt(today.getFullYear() - 2000))) {
+		date_parts[2] = parseInt(date_parts[2]) + 2000;
+	    } else {
+		date_parts[2] = parseInt(date_parts[2]) + 1900;
+	    }
+	} else {
+	    date_parts[2] = parseInt(date_parts[2]);
+	}
+	var birthday = date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
+	//We are guessing no one added to this database
+	//will be over 100 years old
+	var century = parseInt(today.getFullYear()) - 100; 
+	var early_date = date(century, 1, 1);
+
+	//If the birthday is out of range it's invalid
+	if ((birthday < early_date) || (birthday > today)) {
+	    dataset['invalid_fields'].push("birthday");
+	} else {
+	    dataset['birthday'] = birthday;
+	}
+    }
+
+    //Check phone number
+    if (req.body.phone == "") {
+	dataset['invalid_fields'].push("phone");
+    } else {
+	var phone_regexp = /^\D*(\d{3}){0,1}\D*(\d{3})\D*(\d{4})[^x]*(x\d+){0,1}$/;
+	var phone_parts = phone_regexp.exec(req.body.phone);
+	if ((phone_parts[0] == "") && (phone_parts[1] != "") && (phone_parts[2] != "")) {
+	    phone_parts[0] = "219";
+	}
+	if ((phone_parts[1] == "") || (phone_parts[2] == "")) {
+	    dataset['invalid_fields'] = "phone";
+	} else {
+	    dataset['phone'] = phone_parts[0] + phone_parts[1] + phone_parts[2] + phone_parts[3];
+	}
+    }
+
+    //Check street address - just make sure it's not empty
+    if (req.body.address == "") {
+	dataset['invalid_fields'].push("address");
+    } else {
+	dataset['address'] = req.body.address;
+    }
+
+    //Check to make sure zip code isn't empty
+    if (req.body.zip == "") {
+	dataset['invalid_fields'].push("zip");
+    } else {
+	dataset['zip'] = req.body.zip;
+    }
+
+    //Check to make sure that date of contact is valid
+    if (req.body.initial_contact_date == "") {
+        //If it's empty it's invalid
+	dataset['invalid_fields'].push("initial_contact_date");
+    } else {
+	var date_parts = req.body.initial_contact_date.split("/");
+	var today = new Date();
+	if (parseInt(date_parts[2]) < 100) {
+	    if (parseInt(date_parts[2]) <= (parseInt(today.getFullYear() - 2000))) {
+		date_parts[2] = parseInt(date_parts[2]) + 2000;
+	    } else {
+		date_parts[2] = parseInt(date_parts[2]) + 1900;
+	    }
+	} else {
+	    date_parts[2] = parseInt(date_parts[2]);
+	}
+	var initial_contact_date = date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
+	//It's conceivable that the initial contact date isn't
+	//recent, but it should have been some time in the last
+	//20 years at least -- there could be paper records that
+	//are being transcribed
+	var early_year = parseInt(today.getFullYear()) - 20; 
+	var early_date = date(early_year, 1, 1);
+
+	//If the date is out of range it's invalid
+	if ((initial_contact_date < early_date) || (initial_contact_date > today)) {
+	    dataset['invalid_fields'].push("initial_contact_date");
+	} else {
+	    dataset['initial_contact_date'] = initial_contact_date;
+	}
+    }
+	   
+    //If the length of invalid fields is 0, add records to the
+    //database.  Otherwise ask the user to correct problems
+    if (dataset['invalid_fields'].length > 0) {
+
+    } else {
 	dataset['zip_codes'] = getZipCodes();
-  }
-  finishRequest(dataset);
+    }
+    dataset['family_id'] = 1;
+    dataset['zip_codes'] = getZipCodes();
+
+    finishRequest(dataset);
 });
 
 //* Add/Edit Page *//
