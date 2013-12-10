@@ -11,6 +11,26 @@ var file = "charitydb.db";
 //* Functions *//
 /////////////////
 
+//* Date for Family ID *//
+
+Date.prototype.compactDate = function() {
+    var year = this.getFullYear();
+    var month = this.getMonth();
+    var day = this.getDate();
+    var compacted = year.toString();
+    if (month < 10) {
+	compacted += "0" + month.toString();
+    } else {
+	compacted += month.toString();
+    }
+    if (day < 10) {
+	compacted += "0" + day.toString();
+    } else {
+	compacted += day.toString();
+    }
+    return compacted;
+}
+
 //* Error Processing *//
 
 //This is a generic callback function that takes
@@ -408,7 +428,12 @@ app.post('/add', function (req, res) {
     //If the length of invalid fields is 0, add records to the
     //database.  Otherwise ask the user to correct problems
     if (dataset['invalid_fields'].length > 0) {
-
+	//Create a family id
+	//This is being created using the last name
+	//and adding the initial contact date
+	dataset['family_id'] = dataset['last_name'].toUpperCase();
+	dataset['family_id'] = dataset['family_id'].replace(/[^A-Z]/g,"");
+	
     } else {
 	dataset['zip_codes'] = getZipCodes();
     }
