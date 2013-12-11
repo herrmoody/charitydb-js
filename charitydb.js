@@ -11,6 +11,102 @@ var file = "charitydb.db";
 //* Functions *//
 /////////////////
 
+//* Validation Functions *//
+
+//This function checks to make sure a name
+//looks like a valid name
+function validateName(name) {
+    if (name.match(/^[A-Z][A-Za-z]+([ \-][A-Za-z]+)*$/) === null) {
+	return false;
+    } else {
+	return true;
+    }
+}
+
+//This function checks to make sure that a date
+//is valid with an earlies possible date
+//provided as a second parameter
+function validateDate(date_string, early_date) {
+
+    if (date_string == "") {
+        //If it's empty it's invalid
+	return false;
+    } else {
+	var date_parts = date_string.split("/");
+	var today = new Date();
+	if (parseInt(date_parts[2]) < 100) {
+	    if (parseInt(date_parts[2]) <= (parseInt(today.getFullYear() - 2000))) {
+		date_parts[2] = parseInt(date_parts[2]) + 2000;
+	    } else {
+		date_parts[2] = parseInt(date_parts[2]) + 1900;
+	    }
+	} else {
+	    date_parts[2] = parseInt(date_parts[2]);
+	}
+	var date_to_test = date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
+
+	if ((date_to_test < early_date) || (date_to_test > today)) {
+	    return false;
+	} else {
+	    return date_to_test;
+	}
+    }
+}
+
+//This function validates a phone number
+function validatedPhone(phone_string) {
+
+    //Check to make sure the 
+    if (phone_string == "") {
+	return false;
+    } else {
+	//First check for any extension
+	//We'll assume it's the only "x"
+	if (phone_string.match(/x\d+/)) {
+	    //If there's an extension, put the main
+	    //part of the number back in phone string
+	    //and the extension in its own variable
+	    var phone_parts = phone_string.split("x");
+	    phone_string = phone_parts[0];
+	    var extension = phone_parts[1];
+	}
+	//Strip out all non-numeric characters from the
+	//phone string
+	phone_string = phone_string.replace(/\D/g,'');
+
+	//Check to see if a leading "1" was added and strip 
+	//it if it was
+	if (phone_string.length == 11) {
+	    if (phone_string.substring(0,1) == "1") {
+		phone_string = phone_string.substring(1,);
+	    }
+	}
+
+	//Check to see if no area code was provided and put
+	//in 219 if none was
+	if (phone_string.length == 7) {
+	    phone_string = "219" + phone_string;
+	}
+
+	//At this point the phone number should be 10
+	//characters long.  If it's not, it's invalid
+	if (phone_string.length != 10) {
+	    return false;
+	}
+
+	//Check the extension to make sure there's
+	//a number there.
+	if (extension) {
+	    extension = extension.replace(/\D/g,'');
+	    if (extension.length > 0) {
+		phone_string += "x" + extension;
+	    }
+	}
+
+	return phone_string;
+    }
+}
+
 //* Date for Family ID *//
 
 Date.prototype.compactDate = function() {
@@ -321,62 +417,39 @@ app.post('/add', function (req, res) {
     var dataset = {};
     ['invalid_fields'] = [];
 
-    if (req.body.first_name == "") {
-	dataset['invalid_fields'].push("first_name");
-    } else {
+    if (validateName(req.body.first_name)) {
 	dataset['first_name'] = req.body.first_name;
+    } else {
+	dataset['invalid_fields'].push("first_name");
     }
 
-    if (req.body.last_name == "") {
-	dataset['invalid_fields'].push("last_name");
-    } else {
+    if (validateName(req.body.last_name)) {
 	dataset['last_name'] = req.body.last_name;
+    } else {
+	dataset['invalid_fields'].push("last_name");
     }
 
-    //Check to make sure that the birthday is valid
-    if (req.body.birthday == "") {
-        //If it's empty it's invalid
-	dataset['invalid_fields'].push("birthday");
-    } else {
-	var date_parts = req.body.birthday.split("/");
-	var today = new Date();
-	if (parseInt(date_parts[2]) < 100) {
-	    if (parseInt(date_parts[2]) <= (parseInt(today.getFullYear() - 2000))) {
-		date_parts[2] = parseInt(date_parts[2]) + 2000;
-	    } else {
-		date_parts[2] = parseInt(date_parts[2]) + 1900;
-	    }
-	} else {
-	    date_parts[2] = parseInt(date_parts[2]);
-	}
-	var birthday = date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
-	//We are guessing no one added to this database
-	//will be over 100 years old
-	var century = parseInt(today.getFullYear()) - 100; 
-	var early_date = date(century, 1, 1);
+    //Check to make sure birthday is a valid date
 
-	//If the birthday is out of range it's invalid
-	if ((birthday < early_date) || (birthday > today)) {
-	    dataset['invalid_fields'].push("birthday");
-	} else {
-	    dataset['birthday'] = birthday;
-	}
+    //It's unlikely anyone would be entered in to 
+    //this database who's over 100
+    var century = parseInt(today.getFullYear()) - 100; 
+    var early_date = date(century, 1, 1);
+    var birthday = validateDate(req.body.birthday, early_date);
+
+    if (birthday) {
+	dataset['birthday'] = birthday;
+    } else {
+	dataset['invalid_fields'].push("birthday");
     }
 
     //Check phone number
-    if (req.body.phone == "") {
-	dataset['invalid_fields'].push("phone");
+
+    var condensed_phone = validate(req.body.phone);
+    if (condensed_phone) {
+	dataset['phone'] = condensed_phone;
     } else {
-	var phone_regexp = /^\D*(\d{3}){0,1}\D*(\d{3})\D*(\d{4})[^x]*(x\d+){0,1}$/;
-	var phone_parts = phone_regexp.exec(req.body.phone);
-	if ((phone_parts[0] == "") && (phone_parts[1] != "") && (phone_parts[2] != "")) {
-	    phone_parts[0] = "219";
-	}
-	if ((phone_parts[1] == "") || (phone_parts[2] == "")) {
-	    dataset['invalid_fields'] = "phone";
-	} else {
-	    dataset['phone'] = phone_parts[0] + phone_parts[1] + phone_parts[2] + phone_parts[3];
-	}
+	dataset['invalid_fields'] = "phone";
     }
 
     //Check street address - just make sure it's not empty
@@ -393,38 +466,20 @@ app.post('/add', function (req, res) {
 	dataset['zip'] = req.body.zip;
     }
 
-    //Check to make sure that date of contact is valid
-    if (req.body.initial_contact_date == "") {
-        //If it's empty it's invalid
-	dataset['invalid_fields'].push("initial_contact_date");
-    } else {
-	var date_parts = req.body.initial_contact_date.split("/");
-	var today = new Date();
-	if (parseInt(date_parts[2]) < 100) {
-	    if (parseInt(date_parts[2]) <= (parseInt(today.getFullYear() - 2000))) {
-		date_parts[2] = parseInt(date_parts[2]) + 2000;
-	    } else {
-		date_parts[2] = parseInt(date_parts[2]) + 1900;
-	    }
-	} else {
-	    date_parts[2] = parseInt(date_parts[2]);
-	}
-	var initial_contact_date = date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
-	//It's conceivable that the initial contact date isn't
-	//recent, but it should have been some time in the last
-	//20 years at least -- there could be paper records that
-	//are being transcribed
-	var early_year = parseInt(today.getFullYear()) - 20; 
-	var early_date = date(early_year, 1, 1);
+    //Check to make sure initial contact date is valid
 
-	//If the date is out of range it's invalid
-	if ((initial_contact_date < early_date) || (initial_contact_date > today)) {
-	    dataset['invalid_fields'].push("initial_contact_date");
-	} else {
-	    dataset['initial_contact_date'] = initial_contact_date;
-	}
+    //A valid initial contact date shouldn't be over
+    //20 years ago
+    var early_year = parseInt(today.getFullYear()) - 20; 
+    var early_date = date(early_year, 1, 1);
+    var initial_contact_date = validateDate(req.body.initial_contact_date, early_date);
+
+    if (initial_contact_date) {
+	dataset['initial_contact_date'] = initial_contact_date;
+    } else {
+	dataset['invalid_fields'].push("initial_contact_date");
     }
-	   
+
     //If the length of invalid fields is 0, add records to the
     //database.  Otherwise ask the user to correct problems
     if (dataset['invalid_fields'].length > 0) {
