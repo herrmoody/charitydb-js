@@ -186,7 +186,7 @@ function checkForDatabase() {
       db.run("CREATE TABLE phone_types (phone_type_id INTEGER PRIMARY KEY AUTOINCREMENT, phone_type_desc TEXT COLLATE NOCASE);",error);
       
       //Phone Numbers Table
-      db.run("CREATE TABLE phone_numbers (phone_number INTEGER PRIMARY KEY, phone_type_id INTEGER NOT NULL DEFAULT 1, family_code TEXT NOT NULL COLLATE NOCASE, phone_note TEXT, FOREIGN KEY (family_code) REFERENCES families (family_code), FOREIGN KEY (phone_type_id) REFERENCES phone_types (phone_type_id));",error);
+      db.run("CREATE TABLE phone_numbers (phone_number_id INTEGER PRIMARY KEY AUTOINCREMENT, phone_number TEXT NOT NULL, phone_extension TEXT, phone_type_id INTEGER NOT NULL DEFAULT 1, primary_phone INTEGER NOT NULL DEFAULT 0, family_code TEXT NOT NULL COLLATE NOCASE, phone_note TEXT, FOREIGN KEY (family_code) REFERENCES families (family_code), FOREIGN KEY (phone_type_id) REFERENCES phone_types (phone_type_id));",error);
       
       //Zip Codes Table
       db.run("CREATE TABLE zip_codes (zip_code INTEGER PRIMARY KEY, city TEXT NOT NULL, state TEXT NOT NULL);",error);
@@ -395,9 +395,10 @@ app.get('/add', function (req, res) {
     res.render('add', object_collection);
   }
   var object_set = {};
-  var function_array = ["finishRequest","getResults"];
+  var function_array = ["finishRequest","getResults","getResults"];
   var query_array = [
-    ["zip_codes","SELECT zip_code, city, state FROM zip_codes ORDER BY zip_code ASC"]
+    ["zip_codes","SELECT zip_code, city, state FROM zip_codes ORDER BY zip_code ASC"],
+    ["phone_types","SELECT phone_type_id, phone_type_desc FROM phone_types ORDER BY phone_type_id ASC"]
   ];
   function_array.pop();
   var next_function = function_array.pop();

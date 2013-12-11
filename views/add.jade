@@ -16,14 +16,20 @@ block main
       |Head Date of Birth (mm/dd/yyyy)
       input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
     label
-      |Home Phone Number
+      |Primary Phone Number
       input(type="text",name="phone")
+    label
+      |Phone Type
+      select(id="phone_type",name="phone_type")
+        each row in phone_types
+          option(value="#{row.phone_type_id}")=row.phone_type_desc
     label
       |Street Address
       input(type="text",name="address")
     label
       |Zip Code
       select(id="zip",name="zip",onmouseup="getZipInfo(zip_code_list)")
+        option(value="") Choose...
         each row in zip_codes
           option(value="#{row.zip_code}")= row.zip_code
     label
