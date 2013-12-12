@@ -78,7 +78,7 @@ function validatedPhone(phone_string) {
 	//it if it was
 	if (phone_string.length == 11) {
 	    if (phone_string.substring(0,1) == "1") {
-		phone_string = phone_string.substring(1,);
+		phone_string = phone_string.substring(1,0);
 	    }
 	}
 
