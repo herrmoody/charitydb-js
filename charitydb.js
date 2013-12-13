@@ -43,7 +43,7 @@ function validateDate(date_string, early_date) {
 	} else {
 	    date_parts[2] = parseInt(date_parts[2]);
 	}
-	var date_to_test = date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
+	var date_to_test = new Date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
 
 	if ((date_to_test < early_date) || (date_to_test > today)) {
 	    return false;
@@ -54,7 +54,7 @@ function validateDate(date_string, early_date) {
 }
 
 //This function validates a phone number
-function validatedPhone(phone_string) {
+function validatePhone(phone_string) {
 
     //Check to make sure the 
     if (phone_string == "") {
@@ -495,7 +495,7 @@ app.post('/add', function (req, res) {
 	    dataset['phone_extension'] = phone_array[1];
 	}
     } else {
-	dataset['invalid_fields'] = "phone";
+	dataset['invalid_fields'].push("phone");
     }
 
     //Check phone number type
@@ -504,7 +504,7 @@ app.post('/add', function (req, res) {
     if (req.body.phone_type) {
 	dataset['phone_type'] = req.body.phone_type;
     } else {
-	dataset['invalid_fields'] = "phone_type";
+	dataset['invalid_fields'].push("phone_type");
     }
 
     //Check street address - just make sure it's not empty
@@ -526,7 +526,7 @@ app.post('/add', function (req, res) {
     //A valid initial contact date shouldn't be over
     //20 years ago
     var early_year = parseInt(today.getFullYear()) - 20; 
-    var early_date = date(early_year, 1, 1);
+    var early_date = new Date(early_year, 1, 1);
     var initial_contact_date = validateDate(req.body.initial_contact_date, early_date);
 
     if (initial_contact_date) {

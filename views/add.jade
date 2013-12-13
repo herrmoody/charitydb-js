@@ -10,7 +10,8 @@ block main
       |Head First Name
       - if (typeof(invalid_fields) != "undefined") {
         - if (invalid_fields.indexOf("first_name") > -1) {
-          |(Please provide) 
+          span(class="error")
+            |(Please provide) 
           input(type="text",name="first_name")
         - } else {
           input(type="text",name="first_name",value="#{first_name}")
@@ -20,10 +21,31 @@ block main
     - }
     label
       |Head Last Name
-      input(type="text",name="last_name")
+      - if (typeof(invalid_fields) != "undefined") {
+        - if (invalid_fields.indexOf("last_name") > -1) {
+          span(class="error")
+            |(Please provide)
+          input(type="text",name="last_name")
+        - } else {
+          input(type="text",name="last_name",value="#{last_name}")
+        - }
+      - } else {
+        input(type="text",name="last_name")
+      - }
     label
       |Head Date of Birth (mm/dd/yyyy)
-      input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
+      - if (typeof(invalid_fields) != "undefined") {
+        - if (invalid_fields.indexOf("birthday") > -1) {
+          span(class="error")
+            |(Please provide)
+          input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
+        - } else {
+          - var formatted_birthday = birthday.getMonth + "/" + birthday.getDate + "/" + birthday.getFullYear;
+          input(type="text",id="birthday",name="birthday",value="#{formatted_birthday}",onBlur="validateDate('birthday')")
+        - }
+      - } else {
+        input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
+      - }
     label
       |Primary Phone Number
       input(type="text",name="phone")
