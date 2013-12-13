@@ -457,7 +457,7 @@ app.post('/add', function (req, res) {
     //Check fields for valid content
 
     var dataset = {};
-    ['invalid_fields'] = [];
+    dataset['invalid_fields'] = [];
 
     if (validateName(req.body.first_name)) {
 	dataset['first_name'] = req.body.first_name;
@@ -475,8 +475,9 @@ app.post('/add', function (req, res) {
 
     //It's unlikely anyone would be entered in to 
     //this database who's over 100
+    var today = new Date();
     var century = parseInt(today.getFullYear()) - 100; 
-    var early_date = date(century, 1, 1);
+    var early_date = new Date(century, 1, 1);
     var birthday = validateDate(req.body.birthday, early_date);
 
     if (birthday) {
