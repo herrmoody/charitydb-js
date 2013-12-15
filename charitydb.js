@@ -11,6 +11,44 @@ var file = "charitydb.db";
 //* Functions *//
 /////////////////
 
+//* Date for Family ID *//
+
+Date.prototype.compactDate = function() {
+    var year = this.getFullYear();
+    var month = this.getMonth()+1;
+    var day = this.getDate();
+    var compacted = year.toString();
+    if (month < 10) {
+	compacted += "0";
+    }
+    compacted += month.toString();  
+    if (day < 10) {
+	compacted += "0";
+    }
+    compacted += day.toString();
+    return compacted;
+}
+
+//* Date String for SQLite *//
+
+Date.prototype.sqliteTimestring = function() {
+    var year = this.getFullYear();
+    var month = this.getMonth()+1;
+    var day = this.getDate();
+    var timeString = year.toString() + "-";
+    if (month < 10) {
+	timeString += "0";
+    }
+    timeString += month.toString() + "-";
+
+    if (day < 10) {
+	timeString += "0";
+    }
+    timeString += day.toString();
+    return timeString;
+}
+
+
 //* Validation Functions *//
 
 //This function checks to make sure a name
@@ -43,7 +81,7 @@ function validateDate(date_string, early_date) {
 	} else {
 	    date_parts[2] = parseInt(date_parts[2]);
 	}
-	var date_to_test = new Date(date_parts[2], parseInt(date_parts[0]), parseInt(date_parts[1]));
+	var date_to_test = new Date(date_parts[2], parseInt(date_parts[0])-1, parseInt(date_parts[1]));
 
 	if ((date_to_test < early_date) || (date_to_test > today)) {
 	    return false;
@@ -60,88 +98,52 @@ function validatePhone(phone_string) {
     if (phone_string == "") {
 	return false;
     } else {
+	//Setup an array for phone parts
+	var phone_parts = [];
+
 	//First check for any extension
 	//We'll assume it's the only "x"
 	if (phone_string.match(/x\d+/)) {
 	    //If there's an extension, put the main
 	    //part of the number back in phone string
 	    //and the extension in its own variable
-	    var phone_parts = phone_string.split("x");
-	    phone_string = phone_parts[0];
-	    var extension = phone_parts[1];
+	    phone_parts = phone_string.split("x");
+	} else {
+	    //Otherwise we'll just put the phone number
+	    //in the first element of the array
+	    phone_parts[0] = phone_string;
 	}
+
 	//Strip out all non-numeric characters from the
 	//phone string
-	phone_string = phone_string.replace(/\D/g,'');
+	phone_parts[0] = phone_parts[0].replace(/\D/g,'');
 
 	//Check to see if a leading "1" was added and strip 
 	//it if it was
-	if (phone_string.length == 11) {
-	    if (phone_string.substring(0,1) == "1") {
-		phone_string = phone_string.substring(1,0);
-	    }
+	if (phone_parts[0].substring(0,1) == "1") {
+	    phone_parts[0] = phone_parts[0].substring(1,0);
 	}
 
 	//Check to see if no area code was provided and put
 	//in 219 if none was
-	if (phone_string.length == 7) {
-	    phone_string = "219" + phone_string;
+	if (phone_parts[0].length == 7) {
+	    phone_parts[0] = "219" + phone_parts[0];
 	}
 
 	//At this point the phone number should be 10
 	//characters long.  If it's not, it's invalid
-	if (phone_string.length != 10) {
+	if (phone_parts[0].length != 10) {
 	    return false;
 	}
 
 	//Check the extension to make sure there's
 	//a number there.
-	if (extension) {
-	    extension = extension.replace(/\D/g,'');
-	    if (extension.length > 0) {
-		phone_string += "x" + extension;
-	    }
+	if (phone_parts[1]) {
+	    phone_parts[1] = phone_parts[1].replace(/\D/g,'');
 	}
 
-	return phone_string;
+	return phone_parts;
     }
-}
-
-//* Date for Family ID *//
-
-Date.prototype.compactDate = function() {
-    var year = this.getFullYear();
-    var month = this.getMonth();
-    var day = this.getDate();
-    var compacted = year.toString();
-    if (month < 10) {
-	compacted += "0";
-    }
-    compacted += month.toString();  
-    if (day < 10) {
-	compacted += "0";
-    }
-    compacted += day.toString();
-    return compacted;
-}
-
-//* Date String for SQLite *//
-
-Date.prototype.sqliteTimestring = function() {
-    var year = this.getFullYear();
-    var month = this.getMonth();
-    var day = this.getDate();
-    var timeString = year.toString() + "-";
-    if (month < 10) {
-	timeString += "0";
-    }
-    timeString += month.toString() + "-";
-
-    if (day < 10) {
-	timeString += "0";
-    }
-    timeString += day.toString();
-    return timeString;
 }
 
 //* Error Processing *//
@@ -477,7 +479,7 @@ app.post('/add', function (req, res) {
     //this database who's over 100
     var today = new Date();
     var century = parseInt(today.getFullYear()) - 100; 
-    var early_date = new Date(century, 1, 1);
+    var early_date = new Date(century, 0, 1);
     var birthday = validateDate(req.body.birthday, early_date);
 
     if (birthday) {
@@ -526,7 +528,7 @@ app.post('/add', function (req, res) {
     //A valid initial contact date shouldn't be over
     //20 years ago
     var early_year = parseInt(today.getFullYear()) - 20; 
-    var early_date = new Date(early_year, 1, 1);
+    var early_date = new Date(early_year, 0, 1);
     var initial_contact_date = validateDate(req.body.initial_contact_date, early_date);
 
     if (initial_contact_date) {
@@ -543,11 +545,11 @@ app.post('/add', function (req, res) {
 	//and adding the initial contact date
 	dataset['family_id'] = dataset['last_name'].toUpperCase();
 	dataset['family_id'] = dataset['family_id'].replace(/[^A-Z]/g,"");
-	dataset['family_id'] = dataset['initial_contact_date'].compactDate;
+	dataset['family_id'] += dataset['initial_contact_date'].compactDate();
 
-	var family_insert = "INSERT INTO families (family_id, address, zip, initial_contact_date) VALUES ('" + dataset['family_id'] + "', '" + dataset['address'] + "', '" + dataset['zip'] + "', julianday('" + dataset['initial_contact_date'].sqliteTimestring + "'));";
+	var family_insert = "INSERT INTO families (family_id, address, zip, initial_contact_date) VALUES ('" + dataset['family_id'] + "', '" + dataset['address'] + "', '" + dataset['zip'] + "', julianday('" + dataset['initial_contact_date'].sqliteTimestring() + "'));";
 
-	var person_insert = "INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + dataset['family_id'] + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birth_date'].sqliteTimestring + "'), '1');";
+	var person_insert = "INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + dataset['family_id'] + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '1');";
 
 	//If there is a phone extension we need to use a query
 	//that adds the extension, otherwise we'll use a query
@@ -569,7 +571,7 @@ app.post('/add', function (req, res) {
 	var query_array = [ phone_insert, person_insert, family_insert ];
 	function_array.pop();
 	var next_function = function_array.pop();
-	insertData(query_array, function_array, dataset, eval(next_function));
+	insertUpdate(query_array, function_array, dataset, eval(next_function));
 
     } else {
 

@@ -40,7 +40,7 @@ block main
             |(Please provide)
           input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
         - } else {
-          - var formatted_birthday = birthday.getMonth + "/" + birthday.getDate + "/" + birthday.getFullYear;
+          - var formatted_birthday = birthday.getMonth() + "/" + birthday.getDate() + "/" + birthday.getFullYear();
           input(type="text",id="birthday",name="birthday",value="#{formatted_birthday}",onBlur="validateDate('birthday')")
         - }
       - } else {
@@ -48,28 +48,106 @@ block main
       - }
     label
       |Primary Phone Number
-      input(type="text",name="phone")
+      - if (typeof(invalid_fields) != "undefined") {
+        - if (invalid_fields.indexOf("phone") > -1) {
+          span(class="error")
+            |(Please provide)
+          input(type="text",name="phone")
+        - } else {
+          - var formatted_phone = "(" + phone.substring(0,3) + ") " + phone.substring(3,6) + "-" + phone.substring(6,10);
+          - if (typeof(phone_extension) != "undefined") {
+            - formatted_phone += " ext. " + phone_extension;
+          - }
+          input(type="text",name="phone",value="#{formatted_phone}");
+        - }
+      - } else {
+        input(type="text",name="phone");
+      - }
     label
       |Phone Type
       select(id="phone_type",name="phone_type")
         each row in phone_types
-          option(value="#{row.phone_type_id}")=row.phone_type_desc
+          - if (typeof(invalid_fields) != "undefined") {
+            - if (row.phone_type_id == phone_type) {
+              option(value="#{row.phone_type_id}",selected)=row.phone_type_desc
+            - } else {
+              option(value="#{row.phone_type_id}")=row.phone_type_desc
+            - }
+          - } else {
+            option(value="#{row.phone_type_id}")=row.phone_type_desc
+          - }
     label
       |Street Address
-      input(type="text",name="address")
+      - if (typeof(invalid_fields) != "undefined") {
+        - if (invalid_fields.indexOf("address") > -1) {
+          span(class="error")
+            |(Please provide)
+          input(type="text",name="address")
+        - } else {
+          input(type="text",name="address",value="#{address}")
+        - }
+      - } else {
+        input(type="text",name="address")
+      - }
     label
       |Zip Code
-      select(id="zip",name="zip",onmouseup="getZipInfo(zip_code_list)")
-        option(value="") Choose...
-        each row in zip_codes
-          option(value="#{row.zip_code}")= row.zip_code
-    label
-      |City:
-      span(id="city")
-    label
-      |State:
-      span(id="state")
+      - if (typeof(invalid_fields) != "undefined") {
+        - if (invalid_fields.indexOf("zip") > -1) {
+          span(class="error")
+            |(Please provide)
+        - }
+        select(id="zip",name="zip",onchange="getZipInfo(zip_code_list)")
+          option(value="") Choose...
+          - if (invalid_fields.indexOf("zip") < 0) {
+            each row in zip_codes
+              - if (row.zip_code == zip) {
+                option(value="#{row.zip_code}",selected)= row.zip_code
+              - } else {
+                option(value="#{row.zip_code}")= row.zip_code
+              - }
+          - } else {
+            each row in zip_codes
+              - console.log(row.zip_code)
+              option(value="#{row.zip_code}")= row.zip_code
+          - }
+      - } else {
+        select(id="zip",name="zip",onchange="getZipInfo(zip_code_list)")
+          option(value="")
+          each row in zip_codes
+            option(value="#{row.zip_code}")= row.zip_code
+      - }
+    - if ((typeof(invalid_fields) != "undefined") && (invalid_fields.indexOf("zip") < 0)) {
+      each row in zip_codes
+        - if (row.zip_code == zip) {
+          label
+            |City:
+            span(id="city")
+              = row.city
+          label
+            |State:
+            span(id="state")
+              = row.state
+        - }
+    - } else {
+      label
+        |City:
+        span(id="city")
+      label
+        |State:
+        span(id="state")
+    - }
     label
       |Date of Initial Contact (mm/dd/yyyy)
-      input(type="text",id="initial_contact_date",name="initial_contact_date",onBlur="validateDate('initial_contact_date')")
+      - if (typeof(invalid_fields) != "undefined") {
+        - if (invalid_fields.indexOf("initial_contact_date") > -1) {
+          span(class="error")
+            |(Please provide)
+          input(type="text",id="initial_contact_date",name="initial_contact_date",onBlur="validateDate('initial_contact_date')")
+        - } else {
+          - var formatted_icd = initial_contact_date.getMonth() + "/" + initial_contact_date.getDate() + "/" + initial_contact_date.getFullYear()
+          input(type="text",id="initial_contact_date",name="initial_contact_date",value="#{formatted_icd}",onBlur="validateDate('initial_contact_date')")
+        - }
+      -} else {
+        input(type="text",id="initial_contact_date",name="initial_contact_date",onBlur="validateDate('initial_contact_date')")
+      - }
     input(type="submit",value="Submit")
