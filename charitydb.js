@@ -546,33 +546,71 @@ app.post('/add', function (req, res) {
 	dataset['family_id'] = dataset['last_name'].toUpperCase();
 	dataset['family_id'] = dataset['family_id'].replace(/[^A-Z]/g,"");
 	dataset['family_id'] += dataset['initial_contact_date'].compactDate();
-
-	var family_insert = "INSERT INTO families (family_id, address, zip, initial_contact_date) VALUES ('" + dataset['family_id'] + "', '" + dataset['address'] + "', '" + dataset['zip'] + "', julianday('" + dataset['initial_contact_date'].sqliteTimestring() + "'));";
-
-	var person_insert = "INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + dataset['family_id'] + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '1');";
-
-	//If there is a phone extension we need to use a query
-	//that adds the extension, otherwise we'll use a query
-	//that doesn't add an extension
-	if (dataset['phone_extension']) {
-	    var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_extension, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_extension'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
-	} else {
-	    var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
-	}
 	
-	//Create an object set that just has family_id in it.  It shouldn't
-	//be necessary to send too much data to all of the insert queries
-	//but the family id will be needed at the end to go onto the 
-	//next step
-	var object_set = {};
-	object_set['family_id'] = dataset['family_id'];
+	//Check to make sure that this family id combination is not already
+	//taken.  If it is (a relatively remote, but possible eventuality --
+	//two families named Smith sign up on the same day) a counter gets
+	//incremented.  Otherwise the code ends in "-01"
+	
+	//Create a new connection
+	var db = new sqlite3.Database(file, error);
+	
+	//Build a query to find similar family ids
+	var query = "SELECT family_id FROM families WHERE family_id LIKE '" + dataset['family_id'] + "%';";
+	
+	db.serialize(function() {
+	    //Run the query
+	    db.all(query, function(error, rows) {
 
-	var function_array = ["finishRequest","insertUpdate","insertUpdate","insertUpdate"];
-	var query_array = [ phone_insert, person_insert, family_insert ];
-	function_array.pop();
-	var next_function = function_array.pop();
-	insertUpdate(query_array, function_array, dataset, eval(next_function));
+	        //If there are any responses add 1 to the number
+	        //of results returned and append that to the family id
+	        if (rows.length > 0) {
+	            var count = rows.length + 1;
+	            if (count > 9) {
+	                dataset['family_id'] += "-" + count;
+	            } else {
+	                dataset['family_id'] += "-0" + count;
+	            }
+	        //Otherwise the family id ends with "01"
+	        } else {
+	            dataset['family_id'] += "-01";
+	        }
+                //All of the remaining functions are placed here
+                //so they do not execute until we have a family id
+                //The family id creation could be a separate function that is
+                //chained, but that brought its own complexity and in this
+                //case this structure seems more readable and efficient
+                
+                //Create insert queries
+	        var family_insert = "INSERT INTO families (family_id, address, zip, initial_contact_date) VALUES ('" + dataset['family_id'] + "', '" + dataset['address'] + "', '" + dataset['zip'] + "', julianday('" + dataset['initial_contact_date'].sqliteTimestring() + "'));";
 
+	        var person_insert = "INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + dataset['family_id'] + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '1');";
+
+	        //If there is a phone extension we need to use a query
+	        //that adds the extension, otherwise we'll use a query
+	        //that doesn't add an extension
+	        if (dataset['phone_extension']) {
+	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_extension, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_extension'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
+	        } else {
+	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
+	        }
+	
+	        //Create an object set that just has family_id in it.  It shouldn't
+	        //be necessary to send too much data to all of the insert queries
+	        //but the family id will be needed at the end to go onto the 
+	        //next step
+	        var object_set = {};
+	        object_set['family_id'] = dataset['family_id'];
+
+      	        var function_array = ["finishRequest","insertUpdate","insertUpdate","insertUpdate"];
+	        var query_array = [ phone_insert, person_insert, family_insert ];
+	        function_array.pop();
+	        var next_function = function_array.pop();
+	        insertUpdate(query_array, function_array, dataset, eval(next_function));
+	    });
+	});	
+	//Close database connection
+	db.close();
     } else {
 
 	//If there was a validation error, send these results back to the
