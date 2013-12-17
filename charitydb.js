@@ -595,18 +595,23 @@ app.post('/add', function (req, res) {
 	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
 	        }
 	
-	        //Create an object set that just has family_id in it.  It shouldn't
-	        //be necessary to send too much data to all of the insert queries
-	        //but the family id will be needed at the end to go onto the 
-	        //next step
+	        //Create an object set that just has family_id  and an empty zip code
+		//list in it.  The zip code list needs to be there to prevent
+		//errors when the family id is sent back to the add popup window.
+		//It shouldn't be necessary to send too much data to all of the 
+		//insert queries but the family id will be needed at the end to go 
+		//onto the next step
 	        var object_set = {};
+		object_set['zip_codes'] = [];
+		object_set['zip_codes'].push(["empty","empty","empty"]);
+		object_set['phone_types'] = [];
 	        object_set['family_id'] = dataset['family_id'];
 
       	        var function_array = ["finishRequest","insertUpdate","insertUpdate","insertUpdate"];
 	        var query_array = [ phone_insert, person_insert, family_insert ];
 	        function_array.pop();
 	        var next_function = function_array.pop();
-	        insertUpdate(query_array, function_array, dataset, eval(next_function));
+	        insertUpdate(query_array, function_array, object_set, eval(next_function));
 	    });
 	});	
 	//Close database connection
