@@ -310,35 +310,68 @@ function getResults(query_array, function_array, object_set, callback) {
 //the id of a row just added was, but at this point I do not think that
 //capability is needed in this application
 
+//This function has been designed to cycle through a series of
+//insert update functions sent to it within a single serialized
+//database connection to make sure that each function completes
+//before the next is attempted
+
 function insertUpdate(query_array, function_array, object_set, callback) {
-
     //Establish a connection to the database
-    var db = new sqlite3.Database(file,error);    
-
-    //Pop the next insert query off of the query array
-    //and put it in a variable
-    var query_text = query_array.pop();
+    var db = new sqlite3.Database(file,error);
 
     //Establish a serial database connection
     db.serialize(function() {
-	//Run the insert query
-	db.run(query_text,error);
-	
-	//Check the length of the function array.  If it's 0 we are
-	//on the last item and there are no more callbacks, so we only
-	//send the object set
-	if (function_array.length == 0) {
-            callback(object_set);
-        
-	    //If the length of the function array is more than zero, pop
-	    //the next function off and pass the object set, the function
-	    //array, and an eval of the next function to the next callback
+	//We want to cycle at least once through this
+	//so the current function name is set to the name
+	//of this function
+	var current_function_name = "insertUpdate";
+
+	//The callback that is passed is a function, but
+	//for this sequence of events we need the name
+	//so we are extracting the callback name out
+	var callback_name = callback.name;
+
+	//Loop as long as the current function is called
+	//insertUpdate
+	while (current_function_name == "insertUpdate") {
+	    //Get the next query
+	    var query_text = query_array.pop();
+
+	    //Run the query
+	    db.run(query_text,error);
+
+	    //Rename the current_function_name variable
+	    //to the name of the callback that was sent
+	    //If this winds up not being insertUpdate
+	    //the loop is exited
+	    current_function_name = callback_name;
+
+	    //Put the next value in the function array
+	    //into the callback name variable
+	    callback_name = function_array.pop();
+	}
+	//Now that we left the loop we know that the "current_function_name"
+	//is no longer the current function, so evaluate it to 
+	//be the next function to be executed
+	next_function = eval(current_function_name);
+
+	//If the function array is spent and there is no value in
+	//the callback_name variable, then we are finished
+	//going through functions and the next function is the 
+	//final callback.  Run it returning the object set
+	if ((function_array.length == 0) && (callback_name == undefined)) {
+	    next_function(object_set);
 	} else {
-            next_function = function_array.pop();
-            callback(query_array, function_array, object_set, eval(next_function));
-	}      
+	    //Otherwise run the next function
+
+	    //Note that the syntax used here is the opposite used elsewhere
+	    //(e.g. "callback(x,y,z,eval(next_function))"
+	    //This is pretty much because of the way the callback function
+	    //has to be evaluated and tested here
+	    next_function(query_array, function_array, object_set, eval(callback));
+	}
     });
-    //Close Connection
+    //Close the database connection
     db.close();
     return;
 }
@@ -590,9 +623,9 @@ app.post('/add', function (req, res) {
 	        //that adds the extension, otherwise we'll use a query
 	        //that doesn't add an extension
 	        if (dataset['phone_extension']) {
-	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_extension, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_extension'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
+	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_extension, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone'] + "', '" + dataset['phone_extension'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
 	        } else {
-	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone_number'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
+	            var phone_insert = "INSERT INTO phone_numbers (phone_number, phone_type_id, primary_phone, family_id) VALUES ('" + dataset['phone'] + "', '" + dataset['phone_type'] + "', '1', '" + dataset['family_id'] + "');";
 	        }
 	
 	        //Create an object set that just has family_id  and an empty zip code
