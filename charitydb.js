@@ -680,29 +680,23 @@ app.get('/addedit', function(req, res) {
 
     //Use the family id to build queries for
     //filling out page information
+    var query_array = [
+	["family_info","SELECT f.family_id, f.address, f.zip, strftime('%m/%d/%Y', f.initial_contact_date) as initial_contact_date, z.city, z.state FROM families f INNER JOIN zip_codes z ON f.zip = z.zip WHERE f.family_id = '"+family_id+"';"], 
+	["family_members","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birth_date, notes, head FROM people WHERE family_id = '"+family_id+"' ORDER BY head DESC, birth_date ASC;"],
+	["phone_numbers","SELECT pn.phone_number_id, pn.phone_number, pn.phone_extension, pt.phone_type_desc, pn.primary_phone, pn.phone_note FROM phone_numbers pn INNER JOIN phone_types pt ON pn.phone_type_id = pt.phone_type_id WHERE pn.family_id = '"+family_id+"' ORDER BY pn.primary_phone DESC, pn.phone_type_id ASC, phone_number ASC;"],
+	["family_assistance","SELECT a.assistance_id, strftime('%m/%d/%Y', a.assistance_date) AS assistance_date, s.service_desc, ag.agency_name FROM assistance a INNER JOIN services s ON a.service_id = s.service_id INNER JOIN agencies ag ON a.agency_id = ag.agency_id WHERE a.family_id = '"+family_id+"' ORDER BY  assistance_date DESC, s.service_desc ASC LIMIT 10;"],
+	["family_contact","SELECT c.contact_id, ct.contact_type_desc, strftime('%m/%d/%Y', c.date) AS contact_date, c.contact_note, p.first_name FROM contact c INNER JOIN contact_types ct ON c.contact_type_id = ct.contact_type_id INNER JOIN people p ON c.person_id = p.person_id WHERE c.family_id = '"+family_id+"' ORDER BY c.date DESC, p.first_name ASC LIMIT 10;"]
+    ];
 
-    var family_info_query = "SELECT f.family_id, f.address, f.zip, strftime('%m/%d/%Y', f.initial_contact_date) as initial_contact_date, z.city, z.state FROM families f INNER JOIN zip_codes z ON f.zip = z.zip WHERE f.family_id = '"+familyid+"';";
+    var function_array = ["finishRequest","getResults","getResults","getResults","getResults","getResults"];
 
-    var family_members_query = "SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birth_date, notes, head FROM people WHERE family_id = '"+familyid+"' ORDER BY head DESC, birth_date ASC;";
+    function_array.pop();
+    var next_function = function_array.pop();
 
-    var phone_numbers_query = "SELECT pn.phone_number_id, pn.phone_number, pn.phone_extension, pt.phone_type_desc, pn.primary_phone, pn.phone_note FROM phone_numbers pn INNER JOIN phone_types pt ON pn.phone_type_id = pt.phone_type_id WHERE pn.family_id = '"+familyid+"' ORDER BY pn.primary_phone DESC, pn.phone_type_id ASC, phone_number ASC;";
+    var dataset = {};
 
-    var assistance_query = "SELECT a.assistance_id, strftime('%m/%d/%Y', a.asistance_date) AS assistance_date, s.service_desc, ag.agency_name FROM assistance a INNER JOIN services s ON a.service_id = s.service_id INNER JOIN agencies ag ON a.agency_id = ag.agency_id WHERE a.family_id = '"+familyid+"' ORDER BY  assistance_date DESC, s.service_desc ASC LIMIT 10;";
+    getResults(query_array, function_array, dataset, eval(next_function));
 
-    var contact_query = "SELECT c.contact_id, ct.contact_type_desc, strftime('%m/%d/%Y', c.date) AS contact_date, c.contact_note, p.first_name FROM contact c INNER JOIN contact_types ct ON c.contact_type_id = ct.contact_type_id INNER JOIN people p ON c.person_id = p.person_id WHERE c.family_id = '"+familyid+"' ORDER BY c.date DESC, p.first_name ASC LIMIT 10;";
-    
-});
-
-//The post page is loaded when someone submits data
-//to be processed from this page
-app.post('/addedit', function (req, res) {
-    finishRequest = function(object_collection) {
-	res.render('addedit', object_collection);
-    }
-    var stuff = {};
-    stuff['first_name'] = req.body.first_name;
-    stuff['last_name'] = "Squiddy";
-    finishRequest(stuff);
 });
 
 //* View/Edit Page *//
@@ -715,13 +709,13 @@ app.get('/viewedit', function (req, res) {
     finishRequest();
 });
 
-//The post version of this page handles updates
-app.post('/viewedit', function (req, res) {
-    finishRequest = function(object_collection) {
-	res.render('viewedit', object_collection);
-    }
-    finishRequest();
-});
+//* Add/Edit Family Member *//
+
+//* Add/Edit Phone Number *//
+
+//* Add/Edit Assitance Event *//
+
+//* Add/Edit Contact Event *//
 
 //* Port Listen Declaration *//
 
