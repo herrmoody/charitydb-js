@@ -304,8 +304,8 @@ function getResults(query_array, function_array, object_set, callback) {
 
 //* Insert/Update data function - adds/changes data to/in the database *//
 
-//Inserts and Updates both just get a query passed which gets executed
-//As long as the operation is successful, there should be now follow-up
+//Insert and update operations both just accept a query which gets executed
+//As long as the operation is successful, there should be no follow-up
 //required.  This might change if there was a situation where knowing what
 //the id of a row just added was, but at this point I do not think that
 //capability is needed in this application
@@ -672,16 +672,16 @@ app.get('/addedit', function(req, res) {
     finishRequest = function(object_collection) {
 	res.render('addedit', object_collection);
     }
-    var familyid = req.query.familyid;
+    var family_id = req.query.family_id;
 
     //Run the family id through a regular expression
     //to make sure it looks valid
-    familyid = familyid.match(/[A-Z]+\d{8}-\d{2}/);
+    family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
 
     //Use the family id to build queries for
     //filling out page information
     var query_array = [
-	["family_info","SELECT f.family_id, f.address, f.zip, strftime('%m/%d/%Y', f.initial_contact_date) as initial_contact_date, z.city, z.state FROM families f INNER JOIN zip_codes z ON f.zip = z.zip WHERE f.family_id = '"+family_id+"';"], 
+	["family_info","SELECT f.family_id, f.address, f.zip, strftime('%m/%d/%Y', f.initial_contact_date) as initial_contact_date, z.city, z.state FROM families f INNER JOIN zip_codes z ON f.zip = z.zip_code WHERE f.family_id = '"+family_id+"';"], 
 	["family_members","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birth_date, notes, head FROM people WHERE family_id = '"+family_id+"' ORDER BY head DESC, birth_date ASC;"],
 	["phone_numbers","SELECT pn.phone_number_id, pn.phone_number, pn.phone_extension, pt.phone_type_desc, pn.primary_phone, pn.phone_note FROM phone_numbers pn INNER JOIN phone_types pt ON pn.phone_type_id = pt.phone_type_id WHERE pn.family_id = '"+family_id+"' ORDER BY pn.primary_phone DESC, pn.phone_type_id ASC, phone_number ASC;"],
 	["family_assistance","SELECT a.assistance_id, strftime('%m/%d/%Y', a.assistance_date) AS assistance_date, s.service_desc, ag.agency_name FROM assistance a INNER JOIN services s ON a.service_id = s.service_id INNER JOIN agencies ag ON a.agency_id = ag.agency_id WHERE a.family_id = '"+family_id+"' ORDER BY  assistance_date DESC, s.service_desc ASC LIMIT 10;"],

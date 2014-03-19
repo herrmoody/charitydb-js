@@ -3,6 +3,6 @@ function newRecord() {
 }
 
 function receiveFamilyId(familyid) {
-  address = "addedit&familyid="+familyid;
+  address = "addedit?family_id="+familyid;
   window.open(address,"_self");
 }
