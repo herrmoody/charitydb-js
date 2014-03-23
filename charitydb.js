@@ -709,13 +709,67 @@ app.get('/viewedit', function (req, res) {
     finishRequest();
 });
 
+//* Edit Family Address *//
+//Address is only added in the initial
+//family setup, but it needs a mechanism
+//to be changed
+app.get('editaddress', function(req, res) {
+
+});
+
+//* Delete Family *//
+
+app.get('deletefamily', function(req, res) {
+
+});
+
 //* Add/Edit Family Member *//
+
+app.get('addeditfm', function(req, res) {
+
+});
+
+//* Delete Family Member *//
+
+app.get('addedtfm', function(req, res) {
+
+});
 
 //* Add/Edit Phone Number *//
 
+app.get('addeditphone', function(req, res) {
+
+});
+
+//* Delete Phone Number *//
+
+app.get('deletephone', function(req, res) {
+
+});
+
 //* Add/Edit Assitance Event *//
 
+app.get('addeditassistance', function(req, res) {
+
+});
+
+//* Delete Assistance Event *//
+
+app.get('deleteassistance', function(req, res) {
+
+});
+
+//* Delete Contact Event *//
+
+app.get('deletecontact', function(req, res) {
+
+});
+
 //* Add/Edit Contact Event *//
+
+app.get('addeditcontact', function(req, res) {
+
+});
 
 //* Port Listen Declaration *//
 

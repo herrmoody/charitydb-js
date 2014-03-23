@@ -1,21 +1,86 @@
 extend view_edit_layout
+
 block header
-  form(method='POST',action='addedit')
-    input(type='text',name='last_name')
 
 block infoblock
-  p
-  |Hello there 
-  if first_name
-    |#{first_name} #{last_name}.
-  else
-    |anonymous person
+  p.last_name #{family_members[0].last_name}
+  p.family_id Family ID: #{family_info[0].family_id}
+  p.intial_contact Initial Contact Date: #{family_info[0].initial_contact_date}
+  p.address
+  |Address:<br>
+  |#{family_info[0].address} <br>
+  |#{family_info[0].city}, #{family_info[0].state} #{family_info[0].zip}
+  form.record_update
+    button(onclick='javascript:edit_address(#{family_info[0].family_id})') Edit Family Address
+    button(onclick='javascript:delete_family(#{family_info[0].family_id})') Delete Family Record
+
 block familymembers
+  each row in family_members
+    .family_member
+      if row.head
+        #family_head
+          span.member_name #{row.first_name} #{row.last_name}
+          span.member_age age
+          span.birth_date #{row.birth_date}
+      else
+        .line_one
+          span.member_name #{row.first_name} #{row.last_name}
+          span.member_age age
+          span.birth_date #{row.birth_date}
+      if row.notes
+        div.line_two Notes: #{row.notes}
+      form.record_update
+        button(onclick='javascript:edit_member(#{row.person_id})') Edit
+        if !row.head
+          button(onclick='javascript:delete_member(#{row.person_id})') Delete
+  form.record_add
+    button(onclick='javascript:add_member(#{family_info[0].family_id})') Add New Family Member
 
 block phonenumbers
+  each row in phone_numbers
+    if row.phone_number
+      if row.primary_phone
+        #primary_phone
+          span.phone_type #{row.phone_type_desc}
+          span.phone_number #{row.phone_number}
+      else if row.phone_number
+        .phone_number
+          span.phone_type #{row.phone_type_desc}
+          span.phone_number
+      form.record_update
+        button(onclick='javascript:edit_phone(#{row.phone_number_id})') Edit
+        if !row.primary_phone
+          button(onclick='javascript:delete_phone(#{row.phone_number_id})') Delete
+  form.record_add
+    button(onclick='javascript:add_phone(#{family_info[0].family_id})') Add New Phone
 
 block contact
+  each row in family_contact
+    if row.contact_date
+      .contact_row
+        span.contact_date #{row.contact_date}
+        span.contact_desc #{row.contact_type_desc}
+        span.contact_member #{row.first_name}
+      if row.contact_note
+        .contact_note Note: #{row.contact_note}
+      form.record_update
+        button(onclick='javascript:edit_contact(#{row.contact_id})') Edit
+        button(onclick='javascript:delete_contact(#{row.contact_id})') Delete
+  form.record_add
+    button(onclick='javascript:add_contact(#{family_info[0].family_id})') Add New Contact Instance
+
 
 block assistance
+  each row in family_assistance
+    if row.assistance_date
+      .assistance_row
+        span.assistance_date #{row.assistance_date}
+        span.assistance_desc #{row.service_desc}
+        span.assistance_agency #{row.agency_name}
+      form.record_update
+        button(onclick='javascript:edit_assistance(#{row.assitance_id})') Edit
+        button(onclick='javascript:delete_assistance(#{row.assistance_id})') Delete
+   form.record_add
+     button(onclick='javascript:add_assistance(#{family_info[0].family_id})') Add New Assistance Instance
 
 block footer
