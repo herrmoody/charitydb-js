@@ -1,5 +1,5 @@
 function edit_address(family_id) {
-    var address = "editaddress?family+id="+family_id;
+    var address = "editaddress?family_id="+family_id;
     window.open(address,"","height=500,width=750,left=50,top=50");
 }
 

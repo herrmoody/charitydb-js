@@ -667,7 +667,7 @@ app.post('/add', function (req, res) {
 //* Add/Edit Page *//
 
 //The get page is loaded when someone is redirected
-//to this page, typically from an add popup
+//to this page, typically from an add or edit popup
 app.get('/addedit', function(req, res) {
     finishRequest = function(object_collection) {
 	res.render('addedit', object_collection);
@@ -713,61 +713,82 @@ app.get('/viewedit', function (req, res) {
 //Address is only added in the initial
 //family setup, but it needs a mechanism
 //to be changed
-app.get('editaddress', function(req, res) {
+app.get('/editaddress', function(req, res) {
+    finishRequest = function(object_collection) {
+	res.render('editaddress', object_collection);
+    }
+    var family_id = req.query.family_id;
 
+    //Run the family id through a regular expression
+    //to make sure it looks valid
+    family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+
+    //Use the family id to build queries to get the address
+    //information
+    var object_set = {};
+    var function_array = ["finishRequest","getResults","getResults"];
+
+    var query_array = [
+	["address","SELECT address, zip FROM families WHERE family_id = '"+family_id+"';"],
+	["zip_codes","SELECT zip_code, city, state FROM zip_codes;"]
+    ];
+
+    function_array.pop();
+    var next_function = function_array.pop();
+    getResults(query_array, function_array, object_set, eval(next_function));
 });
 
 //* Delete Family *//
 
-app.get('deletefamily', function(req, res) {
+app.get('/deletefamily', function(req, res) {
 
 });
 
 //* Add/Edit Family Member *//
 
-app.get('addeditfm', function(req, res) {
+app.get('/addeditfm', function(req, res) {
 
 });
 
 //* Delete Family Member *//
 
-app.get('addedtfm', function(req, res) {
+app.get('/addeditfm', function(req, res) {
 
 });
 
 //* Add/Edit Phone Number *//
 
-app.get('addeditphone', function(req, res) {
+app.get('/addeditphone', function(req, res) {
 
 });
 
 //* Delete Phone Number *//
 
-app.get('deletephone', function(req, res) {
+app.get('/deletephone', function(req, res) {
 
 });
 
 //* Add/Edit Assitance Event *//
 
-app.get('addeditassistance', function(req, res) {
+app.get('/addeditassistance', function(req, res) {
 
 });
 
 //* Delete Assistance Event *//
 
-app.get('deleteassistance', function(req, res) {
+app.get('/deleteassistance', function(req, res) {
 
 });
 
 //* Delete Contact Event *//
 
-app.get('deletecontact', function(req, res) {
+app.get('/deletecontact', function(req, res) {
 
 });
 
 //* Add/Edit Contact Event *//
 
-app.get('addeditcontact', function(req, res) {
+app.get('/addeditcontact', function(req, res) {
 
 });
 
