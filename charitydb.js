@@ -329,7 +329,7 @@ function insertUpdate(query_array, function_array, object_set, callback) {
 	//The callback that is passed is a function, but
 	//for this sequence of events we need the name
 	//so we are extracting the callback name out
-	var callback_name = callback.name;
+	var callback_name = callback.toString();
 
 	//Loop as long as the current function is called
 	//insertUpdate
@@ -729,7 +729,7 @@ app.get('/editaddress', function(req, res) {
     var function_array = ["finishRequest","getResults","getResults"];
 
     var query_array = [
-	["address","SELECT address, zip FROM families WHERE family_id = '"+family_id+"';"],
+	["address","SELECT address, zip, family_id FROM families WHERE family_id = '"+family_id+"';"],
 	["zip_codes","SELECT zip_code, city, state FROM zip_codes;"]
     ];
 
@@ -738,8 +738,104 @@ app.get('/editaddress', function(req, res) {
     getResults(query_array, function_array, object_set, eval(next_function));
 });
 
-//* Delete Family *//
+//Process changes to an address or force user
+//to correct invalid information for an address
+app.post('/editaddress', function(req,res) {
+    finishRequest = function(object_collection) {
+	res.render('editaddress', object_collection);
+    }
 
+    //Check fields for valid content
+    var dataset = {};
+    dataset['invalid_fields'] = [];
+
+    //Check to make sure address isn't empty
+    if (req.body.address == "") {
+	dataset['invalid_fields'].push("address");
+    } else {
+	dataset['address'] = req.body.address;
+    }
+
+    //Check to make sure zip code isn't empty
+    if (req.body.zip == "") {
+	dataset['invalid_fields'].push("zip");
+    } else {
+	dataset['zip'] = req.body.zip;
+    }
+
+    //Check the provided family id
+    dataset['family_id'] = req.body.family_id;
+    dataset['family_id'] = dataset['family_id'].match(/[A-Z]+\d{8}-\d{2}/);
+
+    //Open a database connection and check the id to make sure that it's
+    //a valid id
+    var db = new sqlite3.Database(file, error);
+
+    //Build a query to find a matching id
+    var query = "SELECT family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';";
+
+    db.serialize(function() {
+	//Run the query
+	db.all(query, function(error, rows) {
+
+	    //If there is no found record, abort the address update
+	    if (rows.length != 1) {
+		dataset['family_id'] = "invalid";
+	    }
+
+	    //Close the database connection.
+	});
+	db.close();
+	
+	//If the length of invalid fields is 0, update the address
+	if ((dataset['invalid_fields'].length == 0) && (dataset['family_id'] != "invalid")) {
+	
+	    //Create update query
+	    var address_update = "UPDATE families SET address = '" + dataset['address'] + "', zip = '" + dataset['zip'] + "' WHERE family_id = '" + dataset['family_id'] + "';";
+	    var object_set = {};
+
+	    //Set family_id to indicate a successful address update
+	    object_set['family_id'] = dataset['family_id'];
+
+	    //Prepare connections for completion.  An object set with
+	    //zip codes needs to be sent back to this page on completion
+	    //to avoid problems in rendering the javascript on that page
+	    object_set['zip_codes'] = [];
+	    object_set['zip_codes'].push(["empty","empty","empty"]);
+	    object_set['address'] = [];
+	    object_set['address'].push(["empty","empty","empty"]);
+
+	    //It's not strictly necessary to put these function names in
+	    //an array here, but it makes this code consistent with other
+	    //code blocks that have a larger number of routines.
+	    var function_array = ["finishRequest","insertUpdate"];
+	    var query_array = [ address_update ];
+	    function_array.pop();
+	    var next_function = function_array.pop();
+	    insertUpdate(query_array, function_array, object_set, next_function);
+	    
+	} else {
+	    //If there was a validation error, send these results back to the
+	    //address update page to have the user correct omissions and problems
+	    var function_array = ["finishRequest","getResults"];
+	    var query_array = [
+		["zip_codes","SELECT zip_code, city, state FROM zip_codes ORDER BY zip_code ASC"],
+	    ];
+	    if (dataset['family_id'] != "invalid") {
+		query_array.push(["address","SELECT address, zip, family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';"]);
+		function_array.push("getResults");
+		//Clear the family id variable in dataset so 
+		//it doesn't appear that the operation has been successful
+		dataset['family_id'] = undefined;
+	    }
+	    function_array.pop();
+	    var next_function = function_array.pop();
+	    getResults(query_array, function_array, dataset, eval(next_function));
+	}
+    });
+});
+//* Delete Family *//
+    
 app.get('/deletefamily', function(req, res) {
 
 });

@@ -3,6 +3,11 @@ function edit_address(family_id) {
     window.open(address,"","height=500,width=750,left=50,top=50");
 }
 
+function receiveFamilyId(family_id) {
+    address = "addedit?family_id="+family_id;
+    window.open(address,"_self");
+}
+
 function delete_family(name, family_id) {
     var message = "Are you sure you wish to delete the "+name+" family and all of the associated records?";
     var proceed = confirm(message);

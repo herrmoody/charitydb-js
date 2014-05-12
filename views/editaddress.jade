@@ -12,7 +12,8 @@ html
         each row in zip_codes
           != "zip_code_list['" + row.zip_code + "'] = ['" + row.city + "','" + row.state + "'];"
         != "</script>"
-        form(method="POST",action="add")
+        form(method="POST",action="editaddress")
+          input(type="hidden",name="family_id",value="#{address[0].family_id}")
           label
             |Street Address
             - if (typeof(invalid_fields) != "undefined") {
@@ -68,3 +69,5 @@ html
               |State:
               span(id="state")
           - }
+            button(onclick="javascript:update_address('')") Update
+            button(onclick="javascript:") Close

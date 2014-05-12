@@ -6,7 +6,9 @@ function returnValue(family_id) {
 	}
 	catch (err) {};
 	close();
-    }
+    } else if (result == "invalid") {
+	close();
+    } 
 }
 
 function getZipInfo(zip_codes) {
