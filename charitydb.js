@@ -843,7 +843,61 @@ app.get('/deletefamily', function(req, res) {
 //* Add/Edit Family Member *//
 
 app.get('/addeditfm', function(req, res) {
+    finishRequest = function(object_collection) {
+	console.log(object_collection);
+	res.render('addeditfm', object_collection);
+    }
+    
+    //If we are adding the process needs to be built
+    //on the family id
+    if (typeof req.query.family_id !== "undefined") {
+	var family_id = req.query.family_id;
 
+	//Run the family id through a regular expression
+	//to make sure it looks valid
+	family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+
+	//Use the family id to build queries to get the address
+	//information
+	var object_set = {};
+	var function_array = ["finishRequest","getResults"];
+
+	var query_array = [
+	    ["family_head","SELECT person_id, first_name, last_name, family_id FROM people WHERE family_id = '" + family_id + "' AND head = 1;"]
+	];
+
+	function_array.pop();
+	var next_function = function_array.pop();
+	getResults(query_array, function_array, object_set, eval(next_function));	
+
+    //If we are updating a record that should be done
+    //using the person id
+    } else if (req.query.person_id !== "undefined") {
+	var person_id = req.query.person_id;
+
+	//Make sure that person_id is a numeric value
+	person_id = parseInt(person_id);
+	
+	var object_set = {};
+	var function_array = ["finishRequest", "getResults", "getResults"];
+
+	var query_array = [
+	    ["family_member","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birthday, head FROM people WHERE person_id = '" + person_id + "';"],
+	    ["family_head","SELECT person_id, first_name, last_name, family_id FROM people WHERE family_id IN (SELECT family_id FROM people WHERE person_id = '" + person_id + "') AND head = 1;"]
+	]
+	function_array.pop();
+	var next_function = function_array.pop();
+	getResults(query_array, function_array, object_set, eval(next_function));	    
+    } else {
+	
+    }
+});
+
+app.post('/addeditfm', function(req, res) {
+    finishRequest = function(object_collection) {
+	res.render('addedit', object_collection);
+    }
+    
 });
 
 //* Delete Family Member *//
