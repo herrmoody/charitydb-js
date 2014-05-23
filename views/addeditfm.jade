@@ -7,65 +7,100 @@ html
   body(onload="returnValue('#{family_id}')")
     div#search_main
       block main
-        form(method="POST",action="addeditfm")
-          input(type="hidden",name="family_id",value="#{family_head[0].family_id}")
-          label
-            |First Name
+        - if ((typeof(family_id) == "undefined") || (parseInt(family_id) == "NaN")) {
+          form(method="POST",action="addeditfm")
             - if (typeof(invalid_fields) != "undefined") {
-              - if (invalid_fields.indexOf("first_name") > -1) {
-                span(class="error")
-                  |(Please provide)
-                input(type="text",name="first_name")
+              input(type="hidden",name="family_id",value="#{head_family_id}")
+              - if (typeof(person_id) != "undefined") {
+                input(type="hidden",name="person_id",value="#{person_id}")
               - }
-            - } else if ((typeof(family_member) != "undefined") && (typeof(family_member[0].first_name) != "undefined")) {
+              input(type="hidden",name="head_id",value="#{head_id}")
+            - } else {
+              input(type="hidden",name="family_id",value="#{family_head[0].family_id}")
+              - if ((typeof(family_member) != "undefined") && (typeof(family_member[0].person_id) != "undefined")) {
+                input(type="hidden",name="person_id",value="#{family_member[0].person_id}")
+              - }
+              input(type="hidden",name="head_id",value="#{family_head[0].person_id}")
+            - }
+            label
+              |First Name
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (invalid_fields.indexOf("first_name") > -1) {
+                  span(class="error")
+                    |(Please provide)
+                  input(type="text",name="first_name")
+                - } else {
+                  input(type="text",name="first_name",value="#{first_name}")
+                - }
+              - } else if ((typeof(family_member) != "undefined") && (typeof(family_member[0].first_name) != "undefined")) {
                 input(type="text",name="first_name",value="#{family_member[0].first_name}")
-            - } else {
+              - } else {
                 input(type="text",name="first_name")
-            - }
-          label
-            |Last Name
-            - if (typeof(invalid_fields) != "undefined") {
-              - if (invalid_fields.indexOf("last_name") > -1) {
-                span(class="error")
-                  |(Please provide)
-                input(type="text",name="last_name")
               - }
-            - } else if ((typeof(family_member) != "undefined") && (typeof(family_member[0].last_name) != "undefined")) {
+            label
+              |Last Name
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (invalid_fields.indexOf("last_name") > -1) {
+                  span(class="error")
+                    |(Please provide)
+                  input(type="text",name="last_name")
+                - } else {
+                  input(type="text",name="last_name",value="#{last_name}")
+                -}
+              - } else if ((typeof(family_member) != "undefined") && (typeof(family_member[0].last_name) != "undefined")) {
                 input(type="text",name="last_name",value="#{family_member[0].last_name}")
-            - } else {
+              - } else {
                 input(type="text",name="last_name",value="#{family_head[0].last_name}")
-            - }
-        label
-          |Date of Birth (mm/dd/yyyy)
-          - if (typeof(invalid_fields) != "undefined") {
-            - if (invalid_fields.indexOf("birthday") > -1) {
-              span(class="error")
-                |(Please provide)
+              - }
+            label
+              |Date of Birth (mm/dd/yyyy)
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (invalid_fields.indexOf("birthday") > -1) {
+                  span(class="error")
+                    |(Please provide)
+                  input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
+                - } else {
+                input(type="text",id="birthday",name="birthday",value="#{birthday}",onBlur="validateDate('birthday')")
+              - }
+            - } else if ((typeof(family_member) != "undefined") && (typeof(family_member[0].birthday) != "undefined")) {
+              input(type = "text",id="birthday",name="birthday",value="#{family_member[0].birthday}",onBlur="validateDate('birthday')");
+            - } else {
               input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
-            - } else {
-            input(type="text",id="birthday",name="birthday",value="#{family_member[0].birthday}",onBlur="validateDate('birthday')")
-          - }
-        - } else if ((typeof(family_member) != "undefined") && (typeof(family_member[0].birthday) != "undefined")) {
-          input(type = "text",id="birthday",name="birthday",value="#{family_member[0].birthday}",onBlur="validateDate('birthday')");
-        - } else {
-            input(type="text",id="birthday",name="birthday",onBlur="validateDate('birthday')")
-        - }
-        label
-          |Head of Household?
-          - if (typeof(family_member) != "undefined") {
-            - if (family_member[0].head == 1) {
-              input(type="checkbox", checked, disabled)
-            - } else {
-              input(type="checkbox")
             - }
-          - } else {
-            input(type="checkbox")
-          - }
-        -if (typeof(family_member) != "undefined") {
-          input(type="submit", value="Update")
-        - } else {
-          input(type="submit", value="Add")
+            label
+              |Head of Household?
+              - if (typeof(invalid_fields) != "undefined") {
+                - if ((headstatus == 1) && (person_id == head_id)) {
+                  input(type="checkbox", name="head", checked, disabled)
+                - } else if (headstatus == 1) {
+                  input(type="checkbox", name="head", checked)
+                - } else {
+                  input(type="checkbox", name="head")
+                - }
+              - } else {
+                - if (typeof(family_member) != "undefined") {
+                  - if (family_member[0].head == 1) {
+                    input(type="checkbox", name="head", checked, disabled)
+                  - } else {
+                    input(type="checkbox", name="head")
+                  - }
+                - } else {
+                  input(type="checkbox", name="head")
+                - }
+              - }
+            - if (typeof(invalid_fields) != "undefined") {
+              - if (typeof(person_id) != "undefined") {
+                input(type="submit", value="Update")
+              - } else {
+                input(type="submit", value="Add")
+              -}
+            - } else {
+              -if (typeof(family_member) != "undefined") {
+                input(type="submit", value="Update")
+              - } else {
+                input(type="submit", value="Add")
+              -}
+            - }
+          button(onclick="javascript:window.close()") Cancel
         -}
-        button(onclick="javascript:close()") Cancel
-
         

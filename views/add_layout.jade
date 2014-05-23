@@ -1,9 +1,11 @@
 doctype 5
 html
   head
-    title Love Inc. - Add a Record
+    title Add a Record
     link(rel="stylesheet", type="text/css", href="/css/style.css")
     script(type="text/javascript", src="/js/add.js")
   body(onload="returnValue('#{family_id}')")
     div#search_main
-      block main
+      - if ((typeOf(family_id) == "undefined") || (parseInt(family_id) == "NaN")) {
+        block main
+      - }

@@ -11,6 +11,15 @@ var file = "charitydb.db";
 //* Functions *//
 /////////////////
 
+//* Universal Completion Function *//
+
+//This establishes a function that sends a the page
+//to the user.  It takes an object that establishes
+//variables that are available in the template
+function finishRequest(action, res, object_collection) {
+	res.render(action, object_collection);
+}
+
 //* Date for Family ID *//
 
 Date.prototype.compactDate = function() {
@@ -254,17 +263,81 @@ function checkForDatabase() {
     }
 }
 
+//* checkResults Function - Takes a query and makes sure that
+//the results of the query are not empty.  If the results
+//are empty then it breaks the chain of events following */
+function checkResults(action, res, query_array, function_array, object_set, callback) {
+    //Establish a new connection to the database
+    var db = new sqlite3.Database(file,error);
+    
+    //Pop the query off of the query array
+    var query_text = query_array.pop();
+
+    //Establish a serial database connection
+    db.serialize(function() {
+	
+	//Prepare a SELECT SQL query
+	db.all(query_text, function(error, rows) {
+	    
+	    //If something is returned set found = 1
+	    if (rows.length > 0) {
+		var found = 1;
+
+	    //Else set found = 0;
+	    } else {
+		var found = 0;
+	    }
+
+	    //If found is 1 move on to the next step
+	    if (found == 1) {
+		if (function_array.length == 0) {
+		    callback(action, res, object_set);
+
+		    //If the length of the function array is more
+		    //than zero, pop the next function off and pass
+		    //the object set, the function array, and an eval
+		    //of the next function to the next callback
+		    
+		} else {
+		    next_function = function_array.pop();
+		    console.log("Query array: " + query_array);
+		    console.log("Function array: " + function_array);
+		    console.log("Object set:" + object_set);
+		    console.log("Next function: " + next_function);
+		    callback(action, res, query_array, function_array, object_set, eval(next_function));
+		}
+		//If not found, shortcircuit the entire process
+	    } else {
+		while (function_array.length > 0) {
+		    next_function = function_array.pop();
+		    callback = eval(next_function);
+		}
+		object_set = {family_id:"invalid"};
+		callback(action, res, object_set);
+	    }
+	});
+    });
+
+    //Close the database connection and get out
+    db.close();
+    return;
+}
+
+
+
+
 //* getResults Function - Retrieves the results of a SELECT query *//
 
 //It takes the query it will execute, the object to which it adds an 
 //object full of array rows, a function array that defines a sequence 
 //of callbacks and their queries, and the next function in the chain
-function getResults(query_array, function_array, object_set, callback) {
+function getResults(action, res, query_array, function_array, object_set, callback) {
 
     //Establish a connection to the database
     var db = new sqlite3.Database(file,error);
   
     //Pop the variables off of the query_array and use them
+    console.log("Query array: " + query_array);
     var query_stuff = query_array.pop();
     var set_name = query_stuff[0];
     var query_text = query_stuff[1]
@@ -286,14 +359,14 @@ function getResults(query_array, function_array, object_set, callback) {
 	    //on the last item and there are no more callbacks, so we only
 	    //send the object set
 	    if (function_array.length == 0) {
-		callback(object_set);
+		callback(action, res, object_set);
         
 		//If the length of the function array is more than zero, pop
 		//the next function off and pass the object set, the function
 		//array, and an eval of the next function to the next callback
 	    } else {
 		next_function = function_array.pop();
-		callback(query_array, function_array, object_set, eval(next_function));
+		callback(action, res, query_array, function_array, object_set, eval(next_function));
 	    }
 	});
     });
@@ -315,7 +388,7 @@ function getResults(query_array, function_array, object_set, callback) {
 //database connection to make sure that each function completes
 //before the next is attempted
 
-function insertUpdate(query_array, function_array, object_set, callback) {
+function insertUpdate(action, res, query_array, function_array, object_set, callback) {
     //Establish a connection to the database
     var db = new sqlite3.Database(file,error);
 
@@ -329,7 +402,8 @@ function insertUpdate(query_array, function_array, object_set, callback) {
 	//The callback that is passed is a function, but
 	//for this sequence of events we need the name
 	//so we are extracting the callback name out
-	var callback_name = callback.toString();
+//	var callback_name = callback.toString();
+	var callback_name = callback.name;
 
 	//Loop as long as the current function is called
 	//insertUpdate
@@ -353,6 +427,7 @@ function insertUpdate(query_array, function_array, object_set, callback) {
 	//Now that we left the loop we know that the "current_function_name"
 	//is no longer the current function, so evaluate it to 
 	//be the next function to be executed
+	console.log("Current function:" + current_function_name);
 	next_function = eval(current_function_name);
 
 	//If the function array is spent and there is no value in
@@ -360,7 +435,7 @@ function insertUpdate(query_array, function_array, object_set, callback) {
 	//going through functions and the next function is the 
 	//final callback.  Run it returning the object set
 	if ((function_array.length == 0) && (callback_name == undefined)) {
-	    next_function(object_set);
+	    next_function(action, res, object_set);
 	} else {
 	    //Otherwise run the next function
 
@@ -368,7 +443,9 @@ function insertUpdate(query_array, function_array, object_set, callback) {
 	    //(e.g. "callback(x,y,z,eval(next_function))"
 	    //This is pretty much because of the way the callback function
 	    //has to be evaluated and tested here
-	    next_function(query_array, function_array, object_set, eval(callback));
+	    console.log("Callback: " + callback);
+	    console.log("Current function name: " + current_function_name);
+	    next_function(action, res, query_array, function_array, object_set, eval(callback));
 	}
     });
     //Close the database connection
@@ -387,7 +464,7 @@ checkForDatabase();
 //This variable is set by the page routine
 //but it needs to be global so it can be called
 //at the end of a sequence of functions
-finishRequest = "";
+//finishRequest = "";
 
 //Setup Express
 var app = express();
@@ -413,13 +490,6 @@ app.use(express.json());
 //This is the function called when someone asks for the
 //root web page ("/")
 app.get('/', function (req, res) {
-
-    //This establishes a function that sends a the page
-    //to the user.  It takes an object that establishes
-    //variables that are available in the template
-    finishRequest = function(object_collection) {
-	res.render('index', object_collection);
-    }
   
     //To make sure that SQL queries are completed before
     //the page is generated, each SQL lookup function needs to
@@ -458,7 +528,7 @@ app.get('/', function (req, res) {
     
     //This is the first SQL function and the items are sent to it
     //to start the callback chain that ends with finishRequest
-    getResults(query_array, function_array, object_set, eval(next_function));
+    getResults("index", res, query_array, function_array, object_set, eval(next_function));
   
 });
 
@@ -467,9 +537,6 @@ app.get('/', function (req, res) {
 //The get page is loaded when someone
 //starts the process of adding a new record
 app.get('/add', function (req, res) {
-    finishRequest = function(object_collection) {
-	res.render('add', object_collection);
-    }
     var object_set = {};
     var function_array = ["finishRequest","getResults","getResults"];
     var query_array = [
@@ -478,7 +545,7 @@ app.get('/add', function (req, res) {
     ];
     function_array.pop();
     var next_function = function_array.pop();
-    getResults(query_array, function_array, object_set, eval(next_function));
+    getResults("add", res, query_array, function_array, object_set, eval(next_function));
 });
 
 //Post page processes entered data from the get
@@ -644,7 +711,7 @@ app.post('/add', function (req, res) {
 	        var query_array = [ phone_insert, person_insert, family_insert ];
 	        function_array.pop();
 	        var next_function = function_array.pop();
-	        insertUpdate(query_array, function_array, object_set, eval(next_function));
+	        insertUpdate("add", res, query_array, function_array, object_set, eval(next_function));
 	    });
 	});	
 	//Close database connection
@@ -660,7 +727,7 @@ app.post('/add', function (req, res) {
 	];
 	function_array.pop();
 	var next_function = function_array.pop();
-	getResults(query_array, function_array, dataset, eval(next_function));
+	getResults("add", res, query_array, function_array, dataset, eval(next_function));
     }
 });
 
@@ -669,9 +736,6 @@ app.post('/add', function (req, res) {
 //The get page is loaded when someone is redirected
 //to this page, typically from an add or edit popup
 app.get('/addedit', function(req, res) {
-    finishRequest = function(object_collection) {
-	res.render('addedit', object_collection);
-    }
     var family_id = req.query.family_id;
 
     //Run the family id through a regular expression
@@ -695,7 +759,7 @@ app.get('/addedit', function(req, res) {
 
     var dataset = {};
 
-    getResults(query_array, function_array, dataset, eval(next_function));
+    getResults("addedit", res, query_array, function_array, dataset, eval(next_function));
 
 });
 
@@ -710,13 +774,11 @@ app.get('/viewedit', function (req, res) {
 });
 
 //* Edit Family Address *//
+
 //Address is only added in the initial
 //family setup, but it needs a mechanism
 //to be changed
 app.get('/editaddress', function(req, res) {
-    finishRequest = function(object_collection) {
-	res.render('editaddress', object_collection);
-    }
     var family_id = req.query.family_id;
 
     //Run the family id through a regular expression
@@ -735,16 +797,12 @@ app.get('/editaddress', function(req, res) {
 
     function_array.pop();
     var next_function = function_array.pop();
-    getResults(query_array, function_array, object_set, eval(next_function));
+    getResults("addedit", res, query_array, function_array, object_set, eval(next_function));
 });
 
 //Process changes to an address or force user
 //to correct invalid information for an address
 app.post('/editaddress', function(req,res) {
-    finishRequest = function(object_collection) {
-	res.render('editaddress', object_collection);
-    }
-
     //Check fields for valid content
     var dataset = {};
     dataset['invalid_fields'] = [];
@@ -771,69 +829,50 @@ app.post('/editaddress', function(req,res) {
     //a valid id
     var db = new sqlite3.Database(file, error);
 
-    //Build a query to find a matching id
-    var query = "SELECT family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';";
+    //If the length of invalid fields is 0, update the address
+    if (dataset['invalid_fields'].length == 0) {
 
-    db.serialize(function() {
-	//Run the query
-	db.all(query, function(error, rows) {
+	//Create a query to check family id
+	var familyid_check = "SELECT family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';";
 
-	    //If there is no found record, abort the address update
-	    if (rows.length != 1) {
-		dataset['family_id'] = "invalid";
-	    }
+	//Create update query
+	var address_update = "UPDATE families SET address = '" + dataset['address'] + "', zip = '" + dataset['zip'] + "' WHERE family_id = '" + dataset['family_id'] + "';";
+	var object_set = {};
 
-	    //Close the database connection.
-	});
-	db.close();
-	
-	//If the length of invalid fields is 0, update the address
-	if ((dataset['invalid_fields'].length == 0) && (dataset['family_id'] != "invalid")) {
-	
-	    //Create update query
-	    var address_update = "UPDATE families SET address = '" + dataset['address'] + "', zip = '" + dataset['zip'] + "' WHERE family_id = '" + dataset['family_id'] + "';";
-	    var object_set = {};
+	//Set family_id to indicate a successful address update
+	object_set['family_id'] = dataset['family_id'];
 
-	    //Set family_id to indicate a successful address update
-	    object_set['family_id'] = dataset['family_id'];
+	//Prepare connections for completion.  An object set with
+	//zip codes needs to be sent back to this page on completion
+	//to avoid problems in rendering the javascript on that page
+	object_set['zip_codes'] = [];
+	object_set['zip_codes'].push(["empty","empty","empty"]);
+	object_set['address'] = [];
+	object_set['address'].push(["empty","empty","empty"]);
 
-	    //Prepare connections for completion.  An object set with
-	    //zip codes needs to be sent back to this page on completion
-	    //to avoid problems in rendering the javascript on that page
-	    object_set['zip_codes'] = [];
-	    object_set['zip_codes'].push(["empty","empty","empty"]);
-	    object_set['address'] = [];
-	    object_set['address'].push(["empty","empty","empty"]);
-
-	    //It's not strictly necessary to put these function names in
-	    //an array here, but it makes this code consistent with other
-	    //code blocks that have a larger number of routines.
-	    var function_array = ["finishRequest","insertUpdate"];
-	    var query_array = [ address_update ];
-	    function_array.pop();
-	    var next_function = function_array.pop();
-	    insertUpdate(query_array, function_array, object_set, next_function);
+	//It's not strictly necessary to put these function names in
+	//an array here, but it makes this code consistent with other
+	//code blocks that have a larger number of routines.
+	var function_array = ["finishRequest","insertUpdate", "checkResults"];
+	var query_array = [ address_update, familyid_check ];
+	function_array.pop();
+	var next_function = function_array.pop();
+	checkResults(action, res, query_array, function_array, object_set, next_function);
 	    
-	} else {
-	    //If there was a validation error, send these results back to the
-	    //address update page to have the user correct omissions and problems
-	    var function_array = ["finishRequest","getResults"];
-	    var query_array = [
-		["zip_codes","SELECT zip_code, city, state FROM zip_codes ORDER BY zip_code ASC"],
-	    ];
-	    if (dataset['family_id'] != "invalid") {
-		query_array.push(["address","SELECT address, zip, family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';"]);
-		function_array.push("getResults");
-		//Clear the family id variable in dataset so 
-		//it doesn't appear that the operation has been successful
-		dataset['family_id'] = undefined;
-	    }
-	    function_array.pop();
-	    var next_function = function_array.pop();
-	    getResults(query_array, function_array, dataset, eval(next_function));
-	}
-    });
+    } else {
+	//If there was a validation error, send these results back to the
+	//address update page to have the user correct omissions and problems
+	var function_array = ["finishRequest","getResults"];
+	var query_array = [
+	    ["zip_codes","SELECT zip_code, city, state FROM zip_codes ORDER BY zip_code ASC"],
+	];
+	function_array.pop();
+	var next_function = function_array.pop();
+	getResults("editaddress", res, query_array, function_array, dataset, eval(next_function));
+    }
 });
+
+
 //* Delete Family *//
     
 app.get('/deletefamily', function(req, res) {
@@ -842,11 +881,8 @@ app.get('/deletefamily', function(req, res) {
 
 //* Add/Edit Family Member *//
 
+//Get is used to build the form
 app.get('/addeditfm', function(req, res) {
-    finishRequest = function(object_collection) {
-	console.log(object_collection);
-	res.render('addeditfm', object_collection);
-    }
     
     //If we are adding the process needs to be built
     //on the family id
@@ -868,7 +904,7 @@ app.get('/addeditfm', function(req, res) {
 
 	function_array.pop();
 	var next_function = function_array.pop();
-	getResults(query_array, function_array, object_set, eval(next_function));	
+	getResults("addeditfm", res, query_array, function_array, object_set, eval(next_function));	
 
     //If we are updating a record that should be done
     //using the person id
@@ -887,28 +923,143 @@ app.get('/addeditfm', function(req, res) {
 	]
 	function_array.pop();
 	var next_function = function_array.pop();
-	getResults(query_array, function_array, object_set, eval(next_function));	    
+	getResults("addeditfm", res, query_array, function_array, object_set, eval(next_function));	    
     } else {
 	
     }
 });
 
+//Post is used to process the form
 app.post('/addeditfm', function(req, res) {
-    finishRequest = function(object_collection) {
-	res.render('addedit', object_collection);
+    //Check fields for valid content
+
+    var dataset = {};
+    dataset['invalid_fields'] = [];
+
+    if (validateName(req.body.first_name)) {
+	dataset['first_name'] = req.body.first_name;
+    } else {
+	dataset['invalid_fields'].push("first_name");
     }
-    
+
+    if (validateName(req.body.last_name)) {
+	dataset['last_name'] = req.body.last_name;
+    } else {
+	dataset['invalid_fields'].push("last_name");
+    }
+
+    //Check to make sure birthday is a valid date
+
+    //It's unlikely anyone would be entered in to 
+    //this database who's over 100
+    var today = new Date();
+    var century = parseInt(today.getFullYear()) - 100; 
+    var early_date = new Date(century, 0, 1);
+    var birthday = validateDate(req.body.birthday, early_date);
+
+    if (birthday) {
+	dataset['birthday'] = birthday;
+    } else {
+	dataset['invalid_fields'].push("birthday");
+    }
+
+    //Make sure that the person id of the family head
+    //that is passed is valid
+    if(req.body.head_id == parseInt(req.body.head_id)) {
+	dataset['head_id'] = req.body.head_id;
+    } else {
+	dataset['invalid_fields'].push("head_id");
+    }
+
+    //If head is checked count that as a 1, otherwise
+    //it's a 0
+    if (req.body.head == "on") {
+	dataset['headstatus'] = 1;
+    } else {
+	dataset['headstatus'] = 0;
+    }
+
+    //Check if a person id for update was passed
+    //and if so check it for validity
+    if (typeof(req.body.person_id) != "undefined") {
+	if (req.body.person_id == parseInt(req.body.person_id)) {
+	    dataset['person_id'] = req.body.person_id;
+	} else {
+	    dataset['invalid_fields'].push("person_id");
+	}
+    }
+
+     //If the length of invalid fields is 0, proceed with operations
+    if (dataset['invalid_fields'].length == 0) {
+    	
+    	//Because it's possible the head is being changed (although quite possible it's not too)
+    	//and that should be the last operation it needs to be optionally very early in the function
+    	//and query array lists.  Here we won't build them both all at once, but assemble them as
+    	//we proceed through the procedure
+    	var function_array = ["finishRequest"];
+    	var query_array = [];
+    	
+    	//Setup the object set to return the family id to indicate success
+    	var object_set = {};
+    	object_set['family_id'] = req.body.family_id;
+
+	//Check if the person being added/updated has been
+	//set as head of household if they were not previously
+	//head of household
+	if (dataset['headstatus'] == 1) {
+	    if ((typeof(dataset['person_id']) == "undefined") || ((typeof(dataset['person_id']) != "undefined") && (dataset['head_id'] != dataset['person_id']))) {
+		//Create a query to update the old family head to make them no longer the head
+		function_array.push("insertUpdate");
+		query_array.push("UPDATE people SET head = 0 WHERE person_id = '" + dataset['head_id'] + "';");
+	    }
+	}
+	
+	//Next add in the insertUpdate query.  The query itself will vary depending on whether the person id
+	//already exists or not
+	function_array.push("insertUpdate");
+	
+	//If person id is defined, this is an update query
+	if (typeof(dataset['person_id']) != "undefined") {
+		query_array.push("UPDATE people SET family_id = '" + req.body.family_id + "', first_name = '" + dataset['first_name'] + "', last_name = '" + dataset['last_name'] + "', birth_date = julianday('" + dataset['birthday'].sqliteTimestring() + "'), head = '" + dataset['headstatus'] + "' WHERE person_id = '" + dataset['person_id'] + "';");
+	} else {
+		query_array.push("INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + req.body.family_id + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '" + dataset['headstatus'] + "')");
+	}
+    	    
+	//Finally, before anything else, add a  query to check family id
+	query_array.push("SELECT family_id FROM families WHERE family_id = '" + req.body.family_id + "';");
+	function_array.push("checkResults");
+	console.log("Function array: " + function_array);
+	
+	function_array.pop();
+	var next_function = function_array.pop()
+	checkResults("addeditfm", res, query_array, function_array, object_set, eval(next_function));
+	
+    } else {
+    	    //Otherwise, pass the dataset back to the form
+    	    if (dataset['invalid_fields'].indexOf("birthday") > -1) {
+    	    	    dataset['birthday'] = "";
+    	    } else {
+    	    	    dataset['birthday'] = req.body.birthday;
+    	    }
+    	    dataset['head_family_id'] = req.body.family_id;
+    	    finishRequest("addeditfm", res, dataset);
+    }
+
 });
 
 //* Delete Family Member *//
 
-app.get('/addeditfm', function(req, res) {
+app.get('/deletefm', function(req, res) {
 
 });
 
 //* Add/Edit Phone Number *//
 
 app.get('/addeditphone', function(req, res) {
+
+});
+
+app.post('/addeditphone', function(req, res) {
 
 });
 
@@ -924,21 +1075,29 @@ app.get('/addeditassistance', function(req, res) {
 
 });
 
+app.post('/addeditassistance', function(req, res) {
+
+});
+
 //* Delete Assistance Event *//
 
 app.get('/deleteassistance', function(req, res) {
 
 });
 
-//* Delete Contact Event *//
-
-app.get('/deletecontact', function(req, res) {
-
-});
-
 //* Add/Edit Contact Event *//
 
 app.get('/addeditcontact', function(req, res) {
+
+});
+
+app.post('/addeditcontact', function(req, res) {
+
+});
+
+//* Delete Contact Event *//
+
+app.get('/deletecontact', function(req, res) {
 
 });
 
