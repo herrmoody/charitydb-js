@@ -58,6 +58,21 @@ Date.prototype.sqliteTimestring = function() {
 }
 
 
+//Strip unusual characters from a string
+function sanitizeString(input) {
+	return input.replace(/[^A-Za-z0-9.,+\-_*!#&@:$?() ]/gi, '');
+}
+
+//Calculate current age
+function ageLastBirthday(birthday_string) {
+	var birth_date = new Date(birthday_string);
+	var current_year = today.getFullYear();
+	var birth_year = birth_date.getFullYear();
+	birth_date.setFullYear(current_year);
+	var adjustment = (today - birth_date < 0) ? 1 : 0;
+	return current_year - birth_year - adjustment;
+}
+
 //* Validation Functions *//
 
 //This function checks to make sure a name
@@ -193,7 +208,7 @@ function checkForDatabase() {
 	    db.run("CREATE TABLE families (family_id TEXT PRIMARY KEY NOT NULL COLLATE NOCASE, address TEXT, zip TEXT, initial_contact_date INTEGER);",error);
       
 	    //People Table
-	    db.run("CREATE TABLE people (person_id INTEGER PRIMARY KEY AUTOINCREMENT, family_id TEXT NOT NULL COLLATE NOCASE, first_name TEXT NOT NULL COLLATE NOCASE, last_name TEXT NOT NULL COLLATE NOCASE, birth_date INTEGER, notes TEXT, head INTEGER DEFAULT 0, FOREIGN KEY(family_id) REFERENCES families (family_id));",error);
+	    db.run("CREATE TABLE people (person_id INTEGER PRIMARY KEY AUTOINCREMENT, family_id TEXT NOT NULL COLLATE NOCASE, first_name TEXT NOT NULL COLLATE NOCASE, last_name TEXT NOT NULL COLLATE NOCASE, birth_date INTEGER, gender INTEGER DEFAULT 0, notes TEXT, head INTEGER DEFAULT 0, FOREIGN KEY(family_id) REFERENCES families (family_id));",error);
       
 	    //Contact Types Table
 	    db.run("CREATE TABLE contact_types (contact_type_id INTEGER PRIMARY KEY AUTOINCREMENT, contact_type_desc TEXT NOT NULL);",error);
@@ -300,10 +315,6 @@ function checkResults(action, res, query_array, function_array, object_set, call
 		    
 		} else {
 		    next_function = function_array.pop();
-		    console.log("Query array: " + query_array);
-		    console.log("Function array: " + function_array);
-		    console.log("Object set:" + object_set);
-		    console.log("Next function: " + next_function);
 		    callback(action, res, query_array, function_array, object_set, eval(next_function));
 		}
 		//If not found, shortcircuit the entire process
@@ -337,7 +348,6 @@ function getResults(action, res, query_array, function_array, object_set, callba
     var db = new sqlite3.Database(file,error);
   
     //Pop the variables off of the query_array and use them
-    console.log("Query array: " + query_array);
     var query_stuff = query_array.pop();
     var set_name = query_stuff[0];
     var query_text = query_stuff[1]
@@ -427,7 +437,6 @@ function insertUpdate(action, res, query_array, function_array, object_set, call
 	//Now that we left the loop we know that the "current_function_name"
 	//is no longer the current function, so evaluate it to 
 	//be the next function to be executed
-	console.log("Current function:" + current_function_name);
 	next_function = eval(current_function_name);
 
 	//If the function array is spent and there is no value in
@@ -443,8 +452,6 @@ function insertUpdate(action, res, query_array, function_array, object_set, call
 	    //(e.g. "callback(x,y,z,eval(next_function))"
 	    //This is pretty much because of the way the callback function
 	    //has to be evaluated and tested here
-	    console.log("Callback: " + callback);
-	    console.log("Current function name: " + current_function_name);
 	    next_function(action, res, query_array, function_array, object_set, eval(callback));
 	}
     });
@@ -459,12 +466,6 @@ function insertUpdate(action, res, query_array, function_array, object_set, call
 
 //Make sure that we have a database
 checkForDatabase();
-
-//Setup a global finishRequest variable.
-//This variable is set by the page routine
-//but it needs to be global so it can be called
-//at the end of a sequence of functions
-//finishRequest = "";
 
 //Setup Express
 var app = express();
@@ -552,9 +553,6 @@ app.get('/add', function (req, res) {
 //page and either moves the user forward or forces
 //them to correct data
 app.post('/add', function (req, res) {
-    finishRequest = function(object_collection) {
-	res.render('add', object_collection);
-    }
 
     //Check fields for valid content
 
@@ -571,6 +569,13 @@ app.post('/add', function (req, res) {
 	dataset['last_name'] = req.body.last_name;
     } else {
 	dataset['invalid_fields'].push("last_name");
+    }
+    
+    //Check to make sure that a gender is assigned
+    if ((parseInt(req.body.gender) == 0) || (parseInt(req.body.gender) == 1)) {
+	dataset['gender'] = parseInt(req.body.gender);
+    } else {
+    	dataset['invalid_fields'].push("gender");
     }
 
     //Check to make sure birthday is a valid date
@@ -684,7 +689,7 @@ app.post('/add', function (req, res) {
                 //Create insert queries
 	        var family_insert = "INSERT INTO families (family_id, address, zip, initial_contact_date) VALUES ('" + dataset['family_id'] + "', '" + dataset['address'] + "', '" + dataset['zip'] + "', julianday('" + dataset['initial_contact_date'].sqliteTimestring() + "'));";
 
-	        var person_insert = "INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + dataset['family_id'] + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '1');";
+	        var person_insert = "INSERT INTO people (family_id, first_name, last_name, birth_date, gender, head) VALUES ('" + dataset['family_id'] + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '" + dataset['gender'] + "', '1');";
 
 	        //If there is a phone extension we need to use a query
 	        //that adds the extension, otherwise we'll use a query
@@ -746,7 +751,7 @@ app.get('/addedit', function(req, res) {
     //filling out page information
     var query_array = [
 	["family_info","SELECT f.family_id, f.address, f.zip, strftime('%m/%d/%Y', f.initial_contact_date) as initial_contact_date, z.city, z.state FROM families f INNER JOIN zip_codes z ON f.zip = z.zip_code WHERE f.family_id = '"+family_id+"';"], 
-	["family_members","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birth_date, notes, head FROM people WHERE family_id = '"+family_id+"' ORDER BY head DESC, birth_date ASC;"],
+	["family_members","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birthday, notes, gender, head FROM people WHERE family_id = '"+family_id+"' ORDER BY head DESC, birth_date ASC;"],
 	["phone_numbers","SELECT pn.phone_number_id, pn.phone_number, pn.phone_extension, pt.phone_type_desc, pn.primary_phone, pn.phone_note FROM phone_numbers pn INNER JOIN phone_types pt ON pn.phone_type_id = pt.phone_type_id WHERE pn.family_id = '"+family_id+"' ORDER BY pn.primary_phone DESC, pn.phone_type_id ASC, phone_number ASC;"],
 	["family_assistance","SELECT a.assistance_id, strftime('%m/%d/%Y', a.assistance_date) AS assistance_date, s.service_desc, ag.agency_name FROM assistance a INNER JOIN services s ON a.service_id = s.service_id INNER JOIN agencies ag ON a.agency_id = ag.agency_id WHERE a.family_id = '"+family_id+"' ORDER BY  assistance_date DESC, s.service_desc ASC LIMIT 10;"],
 	["family_contact","SELECT c.contact_id, ct.contact_type_desc, strftime('%m/%d/%Y', c.date) AS contact_date, c.contact_note, p.first_name FROM contact c INNER JOIN contact_types ct ON c.contact_type_id = ct.contact_type_id INNER JOIN people p ON c.person_id = p.person_id WHERE c.family_id = '"+family_id+"' ORDER BY c.date DESC, p.first_name ASC LIMIT 10;"]
@@ -767,10 +772,7 @@ app.get('/addedit', function(req, res) {
 
 //The get version of this page handles search queries
 app.get('/viewedit', function (req, res) {
-    finishRequest = function(object_collection) {
-	res.render('viewedit', object_collection);
-    }
-    finishRequest();
+    finishRequest("viewedit", res, object_collection);
 });
 
 //* Edit Family Address *//
@@ -797,7 +799,7 @@ app.get('/editaddress', function(req, res) {
 
     function_array.pop();
     var next_function = function_array.pop();
-    getResults("addedit", res, query_array, function_array, object_set, eval(next_function));
+    getResults("editaddress", res, query_array, function_array, object_set, eval(next_function));
 });
 
 //Process changes to an address or force user
@@ -811,7 +813,7 @@ app.post('/editaddress', function(req,res) {
     if (req.body.address == "") {
 	dataset['invalid_fields'].push("address");
     } else {
-	dataset['address'] = req.body.address;
+	dataset['address'] = sanitizeString(req.body.address);
     }
 
     //Check to make sure zip code isn't empty
@@ -857,7 +859,7 @@ app.post('/editaddress', function(req,res) {
 	var query_array = [ address_update, familyid_check ];
 	function_array.pop();
 	var next_function = function_array.pop();
-	checkResults(action, res, query_array, function_array, object_set, next_function);
+	checkResults("editaddress", res, query_array, function_array, object_set, eval(next_function));
 	    
     } else {
 	//If there was a validation error, send these results back to the
@@ -918,7 +920,7 @@ app.get('/addeditfm', function(req, res) {
 	var function_array = ["finishRequest", "getResults", "getResults"];
 
 	var query_array = [
-	    ["family_member","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birthday, head FROM people WHERE person_id = '" + person_id + "';"],
+	    ["family_member","SELECT person_id, first_name, last_name, strftime('%m/%d/%Y', birth_date) AS birthday, notes, gender, head FROM people WHERE person_id = '" + person_id + "';"],
 	    ["family_head","SELECT person_id, first_name, last_name, family_id FROM people WHERE family_id IN (SELECT family_id FROM people WHERE person_id = '" + person_id + "') AND head = 1;"]
 	]
 	function_array.pop();
@@ -948,6 +950,13 @@ app.post('/addeditfm', function(req, res) {
 	dataset['invalid_fields'].push("last_name");
     }
 
+    //Check to make sure that gender is set
+    if ((parseInt(req.body.gender) == 0) || (parseInt(req.body.gender) == 1)) {
+    	    dataset['gender'] = parseInt(req.body.gender);
+    } else {
+    	    dataset['invalid_fields'].push("gender");
+    }
+    
     //Check to make sure birthday is a valid date
 
     //It's unlikely anyone would be entered in to 
@@ -963,6 +972,11 @@ app.post('/addeditfm', function(req, res) {
 	dataset['invalid_fields'].push("birthday");
     }
 
+    //Sanitize any notes
+    if (req.body.notes != "") {
+    	    dataset['notes'] = sanitizeString(req.body.notes);
+    }
+    
     //Make sure that the person id of the family head
     //that is passed is valid
     if(req.body.head_id == parseInt(req.body.head_id)) {
@@ -970,15 +984,8 @@ app.post('/addeditfm', function(req, res) {
     } else {
 	dataset['invalid_fields'].push("head_id");
     }
-
-    //If head is checked count that as a 1, otherwise
-    //it's a 0
-    if (req.body.head == "on") {
-	dataset['headstatus'] = 1;
-    } else {
-	dataset['headstatus'] = 0;
-    }
-
+    
+    
     //Check if a person id for update was passed
     //and if so check it for validity
     if (typeof(req.body.person_id) != "undefined") {
@@ -987,6 +994,14 @@ app.post('/addeditfm', function(req, res) {
 	} else {
 	    dataset['invalid_fields'].push("person_id");
 	}
+    }
+
+    //If head is checked count that as a 1, otherwise
+    //it's a 0
+    if ((dataset['head_id'] == dataset['person_id']) || (req.body.head == "on")) {
+	dataset['headstatus'] = 1;
+    } else {
+	dataset['headstatus'] = 0;
     }
 
      //If the length of invalid fields is 0, proceed with operations
@@ -1020,15 +1035,30 @@ app.post('/addeditfm', function(req, res) {
 	
 	//If person id is defined, this is an update query
 	if (typeof(dataset['person_id']) != "undefined") {
-		query_array.push("UPDATE people SET family_id = '" + req.body.family_id + "', first_name = '" + dataset['first_name'] + "', last_name = '" + dataset['last_name'] + "', birth_date = julianday('" + dataset['birthday'].sqliteTimestring() + "'), head = '" + dataset['headstatus'] + "' WHERE person_id = '" + dataset['person_id'] + "';");
+		var query_string = "UPDATE people SET family_id = '" + req.body.family_id + "', first_name = '" + dataset['first_name'] + "', last_name = '" + dataset['last_name'] + "', birth_date = julianday('" + dataset['birthday'].sqliteTimestring() + "'), gender = '" + dataset['gender'] + "'";
+		if ((typeof(dataset['notes']) == "undefined") || (dataset['notes'] == "")) {
+			query_string += ", notes = null";
+		} else {
+			query_string += ", notes = '" + dataset['notes'] + "'";
+		}
+		query_string += ", head = '" + dataset['headstatus'] + "' WHERE person_id = '" + dataset['person_id'] + "';"
+		query_array.push(query_string);
 	} else {
-		query_array.push("INSERT INTO people (family_id, first_name, last_name, birth_date, head) VALUES ('" + req.body.family_id + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '" + dataset['headstatus'] + "')");
+		var query_string = "INSERT INTO people (family_id, first_name, last_name, birth_date, gender";
+		if ((typeof(dataset['notes']) != "undefined") && (dataset['notes'] != "")) {
+			query_string += ", notes";
+		}
+		query_string += ", head) VALUES ('" + req.body.family_id + "', '" + dataset['first_name'] + "', '" + dataset['last_name'] + "', julianday('" + dataset['birthday'].sqliteTimestring() + "'), '" + dataset['gender'] + "'";
+		if ((typeof(dataset['notes']) != "undefined") && (dataset['notes'] != "")) {
+			query_string += ", '" + dataset['notes'] + "'";
+		}
+		query_string += ", '" + dataset['headstatus'] + "')";
+		query_array.push(query_string);
 	}
     	    
 	//Finally, before anything else, add a  query to check family id
 	query_array.push("SELECT family_id FROM families WHERE family_id = '" + req.body.family_id + "';");
 	function_array.push("checkResults");
-	console.log("Function array: " + function_array);
 	
 	function_array.pop();
 	var next_function = function_array.pop()

@@ -1,4 +1,13 @@
 doctype 5
+- function ageLastBirthday(birthday_string) {
+  - var birth_date = new Date(birthday_string);
+  - var today = new Date();
+  - var current_year = today.getFullYear();
+  - var birth_year = birth_date.getFullYear();
+  - birth_date.setFullYear(current_year);
+  - var adjustment = (today - birth_date < 0) ? 1 : 0;
+  - return current_year - birth_year - adjustment;
+- }
 html(lang="en")
   head
     title Add/Edit Record

@@ -1,5 +1,7 @@
 extend view_edit_layout
 
+
+
 block header
 
 block infoblock
@@ -20,13 +22,29 @@ block familymembers
       if row.head
         #family_head
           span.member_name #{row.first_name} #{row.last_name}
-          span.member_age age
-          span.birth_date #{row.birth_date}
+          span.member_gender
+            - if (row.gender == 0) {
+              |f
+            - } else {
+              |m
+            - }
+          span.member_age
+            - var age = ageLastBirthday(row.birthday);
+            |#{age}
+          span.birth_date #{row.birthday}
       else
         .line_one
           span.member_name #{row.first_name} #{row.last_name}
-          span.member_age age
-          span.birth_date #{row.birth_date}
+          span.member_gender
+            - if (row.gender == 0) {
+              |f
+            - } else {
+              |m
+            - }
+          span.member_age
+            - var age = ageLastBirthday(row.birthday);
+            |#{age}
+          span.birth_date #{row.birthday}
       if row.notes
         div.line_two Notes: #{row.notes}
       .record_update

@@ -6,7 +6,7 @@ html
     script(type="text/javascript", src="/js/add.js")
   body(onload="returnValue('#{family_id}')")
     div#search_main
-      - if ((typeOf(family_id) == "undefined") || (parseInt(family_id) == "NaN")) {
+      - if ((typeof(family_id) == "undefined") || (parseInt(family_id) == "NaN")) {
         block main
           != "<script type='text/javascript'>"
           != "var zip_code_list = {};"
@@ -72,3 +72,4 @@ html
             - }
               input(type="submit", value="Update")
           button(onclick="javascript:window.close()") Cancel
+      - }
