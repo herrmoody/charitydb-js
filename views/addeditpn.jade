@@ -1,0 +1,99 @@
+doctype 5
+html
+  head
+    title Add/Update Phone Number
+    link(rel="stylesheet", type="text/css", href="/css/style.css")
+    script(type="text/javascript", src="/js/add.js")
+  body(onload="returnValue('#{family_id}')")
+    div#search_main
+      block main
+        - if ((typeof(family_id) == "undefined") || (!family_id.match(/[A-Z]+\d{8}-\d{2}/))) {
+          form(method="POST",action="addeditpn")
+            input(type="hidden",name="family_id",value="#{primary_phone_info[0].family_id}")
+            input(type="hidden",name="primary_phone_id",value="#{primary_phone_info[0].phone_number_id}")
+            - if ((typeof(phone_info) != "undefined") && (typeof(phone_info[0].phone_number_id) != "undefined")) {
+              input(type="hidden",name="phone_number_id",value="#{phone_info[0].phone_number_id}")
+            - }
+            label
+              |Phone Type
+              select(id="phone_type",name="phone_type")
+                each row in phone_types
+                  - if (typeof(invalid_fields) != "undefined") {
+                    - if (row.phone_type_id == phone_type) {
+                      option(value="#{row.phone_type_id}",selected)=row.phone_type_desc
+                    - } else {
+                      option(value="#{row.phone_type_id}")=row.phone_type_desc
+                    - }
+                  - } else if ((typeof(phone_info) != "undefined") && (typeof(phone_info[0].phone_type_id) != "undefined")) {
+                    -if (row.phone_type_id == phone_info[0].phone_type_id) {
+                      option(value="#{row.phone_type_id}",selected)=row.phone_type_desc
+                    -} else {
+                      option(value="#{row.phone_type_id}")=row.phone_type_desc
+                    -}
+                  - } else {
+                    option(value="#{row.phone_type_id}")=row.phone_type_desc
+                  - }
+              |Phone Number
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (invalid_fields.indexOf("phone_number") > -1) {
+                  span(class="error")
+                    |(Please provide)
+                  input(type="text",name="phone_number")
+                - } else {
+                  - var formatted_phone = "(" + phone.substring(0,3) + ") " + phone.substring(3,6) + "-" + phone.substring(6,10);
+                  - if (typeof(phone_extension) != "undefined") {
+                    - formatted_phone += " ext. " + phone_extension;
+                  - }
+                  input(type="text",name="phone_number",value="#{formatted_phone}")
+                - }
+              - } else {
+                - if ((typeof(phone_info) != "undefined") && (typeof(phone_info[0].phone_number) != "undefined")) {
+                  - var formatted_phone = "(" + phone_info[0].phone_number.substring(0,3) + ")" + phone_info[0].phone_number.substring(3,6) + "-" + phone_info[0].phone_number.substring(6,10);
+                  - if (parseInt(phone_info[0].phone_extension)) {
+                    - formatted_phone += " ext. " + phone_info[0].phone_extension
+                  - }
+                  input(type="text",name="phone_number",value="#{formatted_phone}")
+                - } else {
+                  input(type="text",name="phone_number")
+                - }
+              - }
+              |Primary Phone
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (primary_phone == 1) {
+                  - if ((typeof(phone_number_id) != "undefined") && (phone_number_id == primary_phone_id)) {
+                    input(type="checkbox",value="primary_phone",checked,disabled)
+                  - } else {
+                    input(type="checkbox",value="primary_phone",checked)
+                  - }
+                - } else {
+                  input(type="checkbox",value="primary_phone")
+                - }
+              - } else {
+                - if (typeof(phone_info) != "undefined") {
+                  - if (phone_info[0].primary_phone == 1) {
+                    -if (phone_info[0].phone_number_id == primary_phone_info[0].phone_number_id) {
+                      input(type="checkbox",value="primary_phone",checked,disabled)
+                    - } else {
+                      input(type="checkbox",value="primary_phone",checked)
+                      |#{phone_info[0].phone_number_id} vs #{primary_phone_info[0].phone_number_id}
+                    - }
+                  - } else {
+                    input(type="checkbox",value="primary_phone")
+                  - }
+                - } else {
+                  input(type="checkbox",value="primary_phone")
+                - }
+              - }
+              label
+                |Note:
+                textarea(name="phone_note")
+                  - if (typeof(invalid_fields) != "undefined") {                
+                    - if (typeof(phone_note) != "undefined") {
+                      |#{phone_note}
+                    - }
+                  - } else {
+                  - if ((typeof(phone_info) != "undefined") && (phone_info[0].phone_note != null)) {
+                    |#{phone_info[0].phone_note}
+                  - }
+                - }
+        - }

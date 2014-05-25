@@ -7,7 +7,7 @@ html
   body(onload="returnValue('#{family_id}')")
     div#search_main
       block main
-        - if ((typeof(family_id) == "undefined") || (parseInt(family_id) == "NaN")) {
+        - if ((typeof(family_id) == "undefined") || (!family_id.match(/[A-Z]+\d{8}-\d{2}/))) {
           form(method="POST",action="addeditfm")
             - if (typeof(invalid_fields) != "undefined") {
               input(type="hidden",name="family_id",value="#{head_family_id}")
@@ -125,7 +125,7 @@ html
               textarea(name="notes")
                 - if (typeof(invalid_fields) != "undefined") {                
                   - if (typeof(notes) != "undefined") {
-                    #{notes}
+                    |#{notes}
                   - }
                 - } else {
                   - if ((typeof(family_member) != "undefined") && (family_member[0].notes != null)) {

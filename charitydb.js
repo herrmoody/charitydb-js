@@ -1085,33 +1085,76 @@ app.get('/deletefm', function(req, res) {
 
 //* Add/Edit Phone Number *//
 
-app.get('/addeditphone', function(req, res) {
+app.get('/addeditpn', function(req, res) {
 
+    if (req.query.phone_number_id) {
+        //Run a passed phone id value through parseInt
+        //to sanitize it
+        var phone_number_id = parseInt(req.query.phone_number_id);
+
+        //Use the family id to build queries to get the address
+        //information
+
+        var query_array = [
+
+            ["phone_types","SELECT phone_type_id, phone_type_desc FROM phone_types;"],
+            ["phone_info","SELECT family_id, phone_number_id, phone_number, phone_extension, phone_note, phone_type_desc, primary_phone FROM phone_numbers INNER JOIN phone_types on phone_numbers.phone_type_id = phone_types.phone_type_id WHERE phone_number_id = '" + phone_number_id + "';"],
+            ["primary_phone_info","SELECT family_id, phone_number_id FROM phone_numbers WHERE family_id IN (SELECT family_id FROM phone_numbers WHERE phone_number_id = '" + phone_number_id + "') AND primary_phone = '1'"],
+            "SELECT family_id FROM phone_numbers WHERE phone_number_id = '" + phone_number_id + "';"
+        ];
+        
+        var object_set = {};
+        var function_array = ["finishRequest", "getResults", "getResults", "getResults", "checkResults"];
+    } else {
+        //We will be adding a new phone number on a family id
+        //Run the passed value through parseInt to make sure
+        //it's a number and then check it.  If there is no valid
+        //family id, the checkResults function will close the window
+        //and kick this back to the calling page
+        var family_id = req.query.family_id;
+
+        //Run the family id through a regular expression
+        //to make sure it looks valid
+        family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+
+        var query_array = [
+            ["phone_types","SELECT phone_type_id, phone_type_desc FROM phone_types;"],
+            ["primary_phone_info","SELECT family_id, phone_number_id FROM phone_numbers WHERE family_id = '" + family_id + "' AND primary_phone = '1';"],
+            "SELECT family_id FROM families WHERE family_id = '" + family_id + "';"
+        ];
+        
+        var object_set = {};
+        var function_array = ["finishRequest","getResults","getResults","checkResults"];
+    }
+    
+    function_array.pop();
+    var next_function = function_array.pop();
+    checkResults("addeditpn", res, query_array, function_array, object_set, eval(next_function));    
 });
 
-app.post('/addeditphone', function(req, res) {
+app.post('/addeditpn', function(req, res) {
 
 });
 
 //* Delete Phone Number *//
 
-app.get('/deletephone', function(req, res) {
+app.get('/deletepn', function(req, res) {
 
 });
 
 //* Add/Edit Assitance Event *//
 
-app.get('/addeditassistance', function(req, res) {
+app.get('/addeditassist', function(req, res) {
 
 });
 
-app.post('/addeditassistance', function(req, res) {
+app.post('/addeditassist', function(req, res) {
 
 });
 
 //* Delete Assistance Event *//
 
-app.get('/deleteassistance', function(req, res) {
+app.get('/deleteassist', function(req, res) {
 
 });
 
