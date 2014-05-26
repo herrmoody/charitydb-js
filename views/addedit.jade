@@ -64,7 +64,7 @@ block phonenumbers
       else if row.phone_number
         .phone_number
           span.phone_type #{row.phone_type_desc}
-          span.phone_number
+          span.phone_number #{row.phone_number}
       .record_update
         button(onclick="javascript:edit_phone('#{row.phone_number_id}')") Edit
         if !row.primary_phone

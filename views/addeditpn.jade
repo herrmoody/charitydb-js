@@ -9,14 +9,21 @@ html
       block main
         - if ((typeof(family_id) == "undefined") || (!family_id.match(/[A-Z]+\d{8}-\d{2}/))) {
           form(method="POST",action="addeditpn")
-            input(type="hidden",name="family_id",value="#{primary_phone_info[0].family_id}")
-            input(type="hidden",name="primary_phone_id",value="#{primary_phone_info[0].phone_number_id}")
+            - if (typeof(primary_phone_info) != "undefined") {
+              input(type="hidden",name="family_id",value="#{primary_phone_info[0].family_id}")
+              input(type="hidden",name="primary_phone_id",value="#{primary_phone_info[0].phone_number_id}")
+            - } else {
+              input(type="hidden",name="family_id",value="#{primary_phone_family_id}")
+              input(type="hidden",name="primary_phone_id",value="#{primary_phone_id}")
+            - }
             - if ((typeof(phone_info) != "undefined") && (typeof(phone_info[0].phone_number_id) != "undefined")) {
               input(type="hidden",name="phone_number_id",value="#{phone_info[0].phone_number_id}")
+            - } else if (typeof(phone_number_id) != "undefined") {
+              input(type="hidden",name="phone_number_id",value="#{phone_number_id}")
             - }
             label
               |Phone Type
-              select(id="phone_type",name="phone_type")
+              select(id="phone_type_id",name="phone_type_id")
                 each row in phone_types
                   - if (typeof(invalid_fields) != "undefined") {
                     - if (row.phone_type_id == phone_type) {
@@ -61,27 +68,27 @@ html
               - if (typeof(invalid_fields) != "undefined") {
                 - if (primary_phone == 1) {
                   - if ((typeof(phone_number_id) != "undefined") && (phone_number_id == primary_phone_id)) {
-                    input(type="checkbox",value="primary_phone",checked,disabled)
+                    input(type="checkbox",name="primary_phone",checked,disabled)
                   - } else {
-                    input(type="checkbox",value="primary_phone",checked)
+                    input(type="checkbox",name="primary_phone",checked)
                   - }
                 - } else {
-                  input(type="checkbox",value="primary_phone")
+                  input(type="checkbox",name="primary_phone")
                 - }
               - } else {
                 - if (typeof(phone_info) != "undefined") {
                   - if (phone_info[0].primary_phone == 1) {
                     -if (phone_info[0].phone_number_id == primary_phone_info[0].phone_number_id) {
-                      input(type="checkbox",value="primary_phone",checked,disabled)
+                      input(type="checkbox",name="primary_phone",checked,disabled)
                     - } else {
-                      input(type="checkbox",value="primary_phone",checked)
+                      input(type="checkbox",name="primary_phone",checked)
                       |#{phone_info[0].phone_number_id} vs #{primary_phone_info[0].phone_number_id}
                     - }
                   - } else {
-                    input(type="checkbox",value="primary_phone")
+                    input(type="checkbox",name="primary_phone")
                   - }
                 - } else {
-                  input(type="checkbox",value="primary_phone")
+                  input(type="checkbox",name="primary_phone")
                 - }
               - }
               label
@@ -96,4 +103,18 @@ html
                     |#{phone_info[0].phone_note}
                   - }
                 - }
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (typeof(phone_number_id) != "undefined") {
+                  input(type="submit", value="Update")
+                - } else {
+                  input(type="submit", value="Add")
+                -}
+              - } else {
+                -if (typeof(phone_info) != "undefined") {
+                  input(type="submit", value="Update")
+                - } else {
+                  input(type="submit", value="Add")
+                -}
+              - }
+            button(onclick="javascript:window.close()") Cancel
         - }
