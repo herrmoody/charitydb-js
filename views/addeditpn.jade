@@ -26,7 +26,7 @@ html
               select(id="phone_type_id",name="phone_type_id")
                 each row in phone_types
                   - if (typeof(invalid_fields) != "undefined") {
-                    - if (row.phone_type_id == phone_type) {
+                    - if (row.phone_type_id == phone_type_id) {
                       option(value="#{row.phone_type_id}",selected)=row.phone_type_desc
                     - } else {
                       option(value="#{row.phone_type_id}")=row.phone_type_desc

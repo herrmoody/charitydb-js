@@ -11,6 +11,25 @@ var file = "charitydb.db";
 //* Functions *//
 /////////////////
 
+//* djb2 Hash Function *//
+
+//This hash isn't being used for any cryptographic purposes
+//and isn't intended to be particularly secure.  It's merely
+//used as a safeguard on record deletion so that (for instance)
+//.../deletething?id=15 won't accidentally be invoked and instead
+//.../deletething?id=15&hash=429342124 needs to be invoked (with
+//the hash matching on the other side, obviously) for a deletion
+//to be successful.
+
+function djb2Code(str) {
+    var hash = 5381;
+    for (i = 0; i < str.length; i++) {
+        char = str.charCodeAt(i);
+        hash = ((hash << 5) + hash) + char; /* hash * 33 + c */
+    }
+    return hash;
+}
+
 //* Universal Completion Function *//
 
 //This establishes a function that sends a the page
@@ -74,6 +93,12 @@ function ageLastBirthday(birthday_string) {
 }
 
 //* Validation Functions *//
+
+//A simple validation function to check that 
+//a family id looks right
+function validateFamilyId(id) {
+    return id.match(/[A-Z]+\d{8}-\d{2}/);
+}
 
 //This function checks to make sure a name
 //looks like a valid name
@@ -463,6 +488,48 @@ function insertUpdate(action, res, query_array, function_array, object_set, call
     return;
 }
 
+//* Basic Delete *//
+//This is used for deleting simple fields like
+//phone number, contact and assistance events
+function simpleDelete(action, res, query_array, function_array, object_set, callback) {
+    var newhash = djb2Code(object_set['check_result'][0]['test_field']);
+    if (newhash == object_set['hash']) {
+        //If the hash passed to the delete query matches the
+        //newly generated hash from the check query,
+        //proceed with a delete
+
+        //Establish a connection to the database
+        var db = new sqlite3.Database(file,error);
+
+        //Establish a serial database connection
+        db.serialize(function() {
+                var query_text = query_array.pop();
+                db.run(query_text[0],error);
+
+        });
+        db.close();
+    }
+    res.writeHead(303, {
+            'Location': '/addedit?family_id=' + object_set['family_id']
+    });
+    res.end();
+}
+
+//* Person Delete *//
+//This is used to delete a person from the database
+//as well as associated contact and assistance events
+function personDelete() {
+    
+}
+
+//* Family Delete *//
+//This is used to delete a family from the database
+//as well as all associated phone numbers, people,
+//contact and assistance events
+function familyDelete() {
+    
+}
+
 ////////////////////
 //* Main Program *//
 ////////////////////
@@ -744,11 +811,7 @@ app.post('/add', function (req, res) {
 //The get page is loaded when someone is redirected
 //to this page, typically from an add or edit popup
 app.get('/addedit', function(req, res) {
-    var family_id = req.query.family_id;
-
-    //Run the family id through a regular expression
-    //to make sure it looks valid
-    family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+    var family_id = validateFamilyId(req.query.family_id);
 
     //Use the family id to build queries for
     //filling out page information
@@ -784,11 +847,7 @@ app.get('/viewedit', function (req, res) {
 //family setup, but it needs a mechanism
 //to be changed
 app.get('/editaddress', function(req, res) {
-    var family_id = req.query.family_id;
-
-    //Run the family id through a regular expression
-    //to make sure it looks valid
-    family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+    var family_id = validateFamilyId(req.query.family_id);
 
     //Use the family id to build queries to get the address
     //information
@@ -891,11 +950,7 @@ app.get('/addeditfm', function(req, res) {
     //If we are adding the process needs to be built
     //on the family id
     if (typeof req.query.family_id !== "undefined") {
-        var family_id = req.query.family_id;
-
-        //Run the family id through a regular expression
-        //to make sure it looks valid
-        family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+        var family_id = validateFamilyId(req.query.family_id);
 
         //Use the family id to build queries to get the address
         //information
@@ -1099,7 +1154,7 @@ app.get('/addeditpn', function(req, res) {
 
         var query_array = [
             ["phone_types","SELECT phone_type_id, phone_type_desc FROM phone_types;"],
-            ["phone_info","SELECT family_id, phone_number_id, phone_number, phone_extension, phone_note, phone_type_desc, primary_phone FROM phone_numbers INNER JOIN phone_types on phone_numbers.phone_type_id = phone_types.phone_type_id WHERE phone_number_id = '" + phone_number_id + "';"],
+            ["phone_info","SELECT family_id, phone_number_id, phone_number, phone_extension, phone_note, phone_numbers.phone_type_id, phone_type_desc, primary_phone FROM phone_numbers INNER JOIN phone_types on phone_numbers.phone_type_id = phone_types.phone_type_id WHERE phone_number_id = '" + phone_number_id + "';"],
             ["primary_phone_info","SELECT family_id, phone_number_id FROM phone_numbers WHERE family_id IN (SELECT family_id FROM phone_numbers WHERE phone_number_id = '" + phone_number_id + "') AND primary_phone = '1'"],
             "SELECT family_id FROM phone_numbers WHERE phone_number_id = '" + phone_number_id + "';"
         ];
@@ -1112,11 +1167,7 @@ app.get('/addeditpn', function(req, res) {
         //it's a number and then check it.  If there is no valid
         //family id, the checkResults function will close the window
         //and kick this back to the calling page
-        var family_id = req.query.family_id;
-
-        //Run the family id through a regular expression
-        //to make sure it looks valid
-        family_id = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+        var family_id = validateFamilyId(req.query.family_id);
 
         var query_array = [
             ["phone_types","SELECT phone_type_id, phone_type_desc FROM phone_types;"],
@@ -1172,8 +1223,7 @@ app.post('/addeditpn', function(req, res) {
     
     //Put the family_id in a "primary_phone_family_id" value until
     //such point as we've verified that there are no problems
-    var family_id = req.body.family_id;
-    dataset['primary_phone_family_id'] = family_id.match(/[A-Z]+\d{8}-\d{2}/);
+    dataset['primary_phone_family_id'] = validateFamilyId(req.body.family_id);
     
     //Get the primary phone id
     dataset['primary_phone_id'] = parseInt(req.body.primary_phone_id);
@@ -1187,7 +1237,7 @@ app.post('/addeditpn', function(req, res) {
     //can only be the phone number itself), proceed
     if (dataset['invalid_fields'].length == 0) {
         //Copy the family id into a family_id variable for completion
-        dataset['family_id'] = family_id;
+        dataset['family_id'] = dataset['primary_phone_family_id'];
         
         //Start the arrays to be passed
         var query_array = [];
@@ -1251,7 +1301,22 @@ app.post('/addeditpn', function(req, res) {
 //* Delete Phone Number *//
 
 app.get('/deletepn', function(req, res) {
-
+        var dataset = {};
+        dataset['phone_number_id'] = parseInt(req.query.phone_number_id);
+        dataset['family_id'] = validateFamilyId(req.query.family_id);
+        dataset['hash'] = parseInt(req.query.hash);
+        
+        query_array = [
+            ["DELETE FROM phone_numbers WHERE phone_number_id = '" + dataset['phone_number_id'] + "';"],
+            ["check_result","SELECT phone_number AS test_field FROM phone_numbers WHERE phone_number_id = '" + dataset['phone_number_id'] + "' AND family_id = '" + dataset['family_id'] + "' AND primary_phone = 0;"]
+        ];
+        
+        function_array = ["simpleDelete", "getResults"];
+        
+        function_array.pop();
+        var next_function = function_array.pop();
+        
+        getResults("deletepn", res, query_array, function_array, dataset, eval(next_function));
 });
 
 //* Add/Edit Assitance Event *//
