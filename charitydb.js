@@ -79,7 +79,8 @@ Date.prototype.sqliteTimestring = function() {
 
 //Strip unusual characters from a string
 function sanitizeString(input) {
-    return input.replace(/[^A-Za-z0-9.,+\-_*!#&@:$?() ]/gi, '');
+    input = input.replace(/[^A-Za-z0-9.,+\-_*!#&@:$?()' ]/gi, '');
+    return input.replace(/[']/gi, '\'\''); 
 }
 
 //Calculate current age
@@ -96,8 +97,8 @@ function ageLastBirthday(birthday_string) {
 
 //A simple validation function to check that 
 //a family id looks right
-function validateFamilyId(id) {
-    return id.match(/[A-Z]+\d{8}-\d{2}/);
+function validateFamilyId(family_id) {
+    return family_id.match(/[A-Z]+\d{8}-\d{2}/);
 }
 
 //This function checks to make sure a name
@@ -396,10 +397,14 @@ function getResults(action, res, query_array, function_array, object_set, callba
             }
             //Check the length of the function array.  If it's 0 we are
             //on the last item and there are no more callbacks, so we only
-            //send the object set
+            //send the objects that have content.  There are cases where query
+            //array might still be needed so test that to see if it needs to be sent
             if (function_array.length == 0) {
-                callback(action, res, object_set);
-
+                if (query_array.length > 0) {
+                    callback(action, res, query_array, object_set);
+                } else {
+                    callback(action, res, object_set);
+                }
                 //If the length of the function array is more than zero, pop
                 //the next function off and pass the object set, the function
                 //array, and an eval of the next function to the next callback
@@ -489,9 +494,9 @@ function insertUpdate(action, res, query_array, function_array, object_set, call
 }
 
 //* Basic Delete *//
-//This is used for deleting simple fields like
-//phone number, contact and assistance events
-function simpleDelete(action, res, query_array, function_array, object_set, callback) {
+//This is a basic delete function that will run through
+//all queries sent to it
+function simpleDelete(action, res, query_array, object_set) {
     var newhash = djb2Code(object_set['check_result'][0]['test_field']);
     if (newhash == object_set['hash']) {
         //If the hash passed to the delete query matches the
@@ -503,31 +508,24 @@ function simpleDelete(action, res, query_array, function_array, object_set, call
 
         //Establish a serial database connection
         db.serialize(function() {
+            while(query_array.length > 0) {
                 var query_text = query_array.pop();
                 db.run(query_text[0],error);
-
+            }
         });
         db.close();
     }
-    res.writeHead(303, {
+    if (action == "deletefamily") {
+        res.writeHead(303, {
+            'Location': '/'
+        });
+    } else {
+        
+        res.writeHead(303, {
             'Location': '/addedit?family_id=' + object_set['family_id']
-    });
-    res.end();
-}
-
-//* Person Delete *//
-//This is used to delete a person from the database
-//as well as associated contact and assistance events
-function personDelete() {
-    
-}
-
-//* Family Delete *//
-//This is used to delete a family from the database
-//as well as all associated phone numbers, people,
-//contact and assistance events
-function familyDelete() {
-    
+        });
+        res.end();
+    }
 }
 
 ////////////////////
@@ -939,7 +937,25 @@ app.post('/editaddress', function(req,res) {
 //* Delete Family *//
 
 app.get('/deletefamily', function(req, res) {
-
+    var dataset = {};
+    dataset['family_id'] = validateFamilyId(req.query_family_id);
+    dataset['hash'] = parseInt(req.query.hash);
+    
+    var query_array = [
+        ["DELETE FROM families WHERE family_id = '" + dataset['family_id'] + "';"],
+        ["DELETE FROM people WHERE family_id = '" + dataset['family_id'] + "';"],
+        ["DELETE FROM phone_numbers WHERE family_id = '" + dataset['family_id'] + "';"],
+        ["DELETE FROM contact WHERE family_id = '" + dataset['family_id'] + "';"],
+        ["DELETE FROM assistance WHERE family_id = '" + dataset['family_id'] + "';"],
+        ["check_result", "SELECT last_name AS test_field FROM people WHERE family_id = '" + dataset['family_id'] + "' AND head = '1';"]
+    ];
+    
+    var function_array = ["simpleDelete", "getResults"];
+    
+    function_array.pop();
+    var next_function = function_array.pop();
+    
+    getResults("deletefamily", res, query_array, function_array, dataset, eval(next_function));
 });
 
 //* Add/Edit Family Member *//
@@ -1137,6 +1153,22 @@ app.post('/addeditfm', function(req, res) {
 //* Delete Family Member *//
 
 app.get('/deletefm', function(req, res) {
+    var dataset = {};
+    dataset['person_id'] = parseInt(req.query.person_id);
+    dataset['family_id'] = validateFamilyId(req.query.family_id);
+    dataset['hash'] = parseInt(req.query.hash);
+    
+    var query_array = [
+        ["DELETE FROM people WHERE person_id ='" + dataset['person_id'] + "';"],
+        ["DELETE FROM contact WHERE person_id = '" + dataset['person_id'] + "';"],
+        ["check_result", "SELECT first_name || ' ' || last_name AS test_field FROM people WHERE person_id = '" + dataset['person_id'] + "' AND family_id = '" + dataset['family_id'] + "';"]
+    ];
+    
+    var function_array = ["simpleDelete","getResults"];
+    
+    function_array.pop();
+    var next_function = function_array.pop();
+    getResults("deletefm", res, query_array, function_array, dataset, eval(next_function));
 
 });
 
@@ -1210,8 +1242,6 @@ app.post('/addeditpn', function(req, res) {
     //Check the primary phone number checkbox value
     //If the phone number already is the primary
     //or if the check box is on, this is primary
-    console.log(req.body.primary_phone_id + "/" + req.body.phone_number_id);
-    console.log(req.body.primary_phone);
     if ((req.body.primary_phone_id == req.body.phone_number_id) || (req.body.primary_phone == "on")) {
         dataset['primary_phone'] = 1;
     } else {
@@ -1284,9 +1314,6 @@ app.post('/addeditpn', function(req, res) {
         //Add on a check to make sure the family id is valid
         query_array.push("SELECT family_id FROM phone_numbers WHERE family_id = '" + dataset['family_id'] + "';");
         function_array.push("checkResults");
-        
-        console.log(query_array);
-        console.log(function_array);
         
         //Send everything on its way
         function_array.pop();

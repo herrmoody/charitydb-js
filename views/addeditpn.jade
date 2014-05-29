@@ -7,7 +7,7 @@ html
   body(onload="returnValue('#{family_id}')")
     div#search_main
       block main
-        - if ((typeof(family_id) == "undefined") || (!family_id.match(/[A-Z]+\d{8}-\d{2}/))) {
+        - if ((typeof(family_id) == "undefined") || !(family_id[0].match(/[A-Z]+\d{8}-\d{2}/))) {
           form(method="POST",action="addeditpn")
             - if (typeof(primary_phone_info) != "undefined") {
               input(type="hidden",name="family_id",value="#{primary_phone_info[0].family_id}")
