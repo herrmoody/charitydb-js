@@ -1289,7 +1289,7 @@ app.post('/addeditpn', function(req, res) {
                 values += ", null";
             }
             if (typeof(dataset['phone_note']) != "undefined") {
-                values += ", '" + dataset['phone_note'];
+                values += ", '" + dataset['phone_note'] + "'";
             } else {
                 values += ", null";
             }
@@ -1350,10 +1350,134 @@ app.get('/deletepn', function(req, res) {
 
 app.get('/addeditassist', function(req, res) {
 
+        if (req.query.assistance_id) {
+        //Run a passed assistance id value through parseInt
+        //to sanitize it
+        var assistance_id = parseInt(req.query.assistance_id);
+
+        //Use the assistance id to build queries to get the needed information
+
+        var query_array = [
+            ["services","SELECT service_id, service_desc FROM services;"],
+            ["agencies","SELECT agency_id, agency_name FROM agencies;"],
+            ["family_info","SELECT family_id, last_name FROM people WHERE family_id IN (SELECT family_id FROM assistance WHERE assistance_id = '" + assistance_id + "') AND head = '1';"],
+            ["assistance","SELECT assistance_id, assistance_date, service_id, agency_id FROM assistance WHERE assistance_id = '" + assistance_id + "';"],
+            "SELECT family_id FROM assistance WHERE asssistance_id = '" + assistance_id + "';"
+        ];
+
+        var object_set = {};
+        var function_array = ["finishRequest", "getResults", "getResults", "getResults", "getResults", "checkResults"];
+    } else {
+        //We will be adding a new assistance instance on a family id
+        //Run the passed value through family_id validation to make sure
+        //it's a number and then check it.  If there is no valid
+        //family id, the checkResults function will close the window
+        //and kick this back to the calling page
+        var family_id = validateFamilyId(req.query.family_id);
+
+        var query_array = [
+            ["services","SELECT service_id, service_desc FROM services;"],
+            ["agencies","SELECT agency_id, agency_name FROM agencies;"],
+            ["family_info","SELECT family_id, last_name FROM people WHERE family_id = '" + family_id + "' AND head = '1';"],
+            "SELECT family_id FROM families WHERE family_id = '" + family_id + "';"
+        ];
+
+        var object_set = {};
+        var function_array = ["finishRequest","getResults","getResults","getResults","checkResults"];
+    }
+
+    function_array.pop();
+    var next_function = function_array.pop();
+    checkResults("addeditassist", res, query_array, function_array, object_set, eval(next_function));  
 });
 
-app.post('/addeditassist', function(req, res) {
 
+app.post('/addeditassist', function(req, res) {
+    //Check fields for valid content
+    var dataset = {};
+    dataset['invalid_fields'] = [];
+    
+    //Make sure that a kind of service has been provided
+    if (parseInt(req.body.service_id)) {
+        dataset['service_id'] = parseInt(req.body.service_id);
+    } else {
+        dataset['invalid_fields'].push("service_id");
+    }
+    
+    //Make sure that assisting agency has been provided
+    if (parseInt(req.body.agency_id)) {
+        dataset['agency_id'] = parseInt(req.body.agency_id);
+    } else {
+        dataset['invalid_fields'].push("agency_id");
+    }
+
+    //Check the Assistance Date to make sure it's valid
+    var today = new Date();
+    //We'll take dates up to 10 years old just to allow
+    //for retrospective data entry
+    var oldest_accepted_date = parseInt(today.getFullYear()) - 10;
+    var early_date = new Date(oldest_accepted_date, 0, 1);
+    var assistance_date = validateDate(req.body.assistance_date, early_date);
+    
+    if (assistance_date) {
+        dataset['assistance_date'] = assistance_date;
+    } else {
+        dataset['invalid_fields'].push("assistance_date");
+    }
+
+    //Put any provided family id into the assistance family field
+    dataset['assistance_family'] = validateFamilyId(req.body.assistance_family);
+    
+    //If there is an existing assistance id, pass that along
+    if (parseInt(req.body.assistance_id) > 0) {
+        dataset['assistance_id'] = parseInt(req.body.assistance_id);
+    }
+    
+    //If there is nothing in the invalid fieds array, procced with an
+    //insert or update
+    if (dataset['invalid_fields'].length == 0) {
+     
+        //copy assistance family into the family id variable
+        dataset['family_id'] = dataset['assistance_family'];
+        
+        //Start the arrays to be passed
+        var query_array = [];
+        var function_array = ['finishRequest'];
+        
+        //Determine if it is an update or an insert being done
+        if (typeof(dataset['assistance_id']) == "undefined") {
+            //Do an insert
+            var fields = "assistance_date, family_id, service_id, agency_id";
+            var values = "julianday('" + dataset['assistance_date'].sqliteTimestring() + "'), '" + dataset['family_id'] + "', '" + dataset['service_id'] + "', '" + dataset['agency_id'] + "'";
+            query_array.push("INSERT INTO assistance (" + fields + ") VALUES (" + values + ");");
+            function_array.push("insertUpdate");
+        } else {
+            //Update an existing record
+            var datapairs = "assistance_date = julianday('" + dataset['assistance_date'].sqliteTimestring() + "'), service_id = '" + dataset['service_id'] + "', agency_id = '" + dataset['agency_id'] + "'";
+            query_array.push("UPDATE assistance SET " + datapairs + " WHERE assistance_id = '" + dataset['assistance_id'] + "';");
+            function_array.push("insertUpdate");
+        }
+        
+        //Add on a family_id check
+        query_array.push("SELECT family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';");
+        function_array.push("checkResults");
+        
+        //Send everything on its way
+        function_array.pop();
+        var next_function = function_array.pop();
+        checkResults("addeditassist", res, query_array, function_array, dataset, eval(next_function));
+    } else {
+        //Just send the dataset back
+        var query_array = [
+            ["services","SELECT service_id, service_desc FROM services;"],
+            ["agencies","SELECT agency_id, agency_name FROM agencies;"],
+            ["family_info","SELECT family_id, last_name FROM people WHERE family_id = '" + dataset['assistance_family'] + "' AND head = '1';"]
+        ];
+        var function_array = ["finishRequest","getResults","getResults","getResults"];
+        function_array.pop();
+        var next_function = function_array.pop();
+        checkResults("addeditassist", res, query_array, function_array, dataset, eval(next_function));
+    }
 });
 
 //* Delete Assistance Event *//
@@ -1365,11 +1489,148 @@ app.get('/deleteassist', function(req, res) {
 //* Add/Edit Contact Event *//
 
 app.get('/addeditcontact', function(req, res) {
+        
+        if (req.query.contact_id) {
+        //Run a passed contact id value through parseInt
+        //to sanitize it
+        var contact_id = parseInt(req.query.contact_id);
 
+        //Use the contact id to build queries to get the needed information
+
+        var query_array = [
+            ["contact_types","SELECT contact_type_id, contact_type_desc FROM contact_types;"],
+            ["family_members","SELECT person_id, first_name || ' ' || last_name AS name, family_id FROM people INNER JOIN contact ON people.family_id = contact.family_id WHERE contact.contact_id = '" + contact_id + "';"],
+            ["contact_info","SELECT contact_id, date, person_id, contact_note, contact_type_id FROM contact WHERE contact_id = '" + contact_id + "';"],
+            "SELECT family_id FROM contact WHERE contact_id = '" + contact_id + "';"
+        ];
+
+        var object_set = {};
+        var function_array = ["finishRequest", "getResults", "getResults", "getResults", "checkResults"];
+    } else {
+        //We will be adding a new contact instance on a family id
+        //Run the passed value through family_id validation to make sure
+        //it's a number and then check it.  If there is no valid
+        //family id, the checkResults function will close the window
+        //and kick this back to the calling page
+        var family_id = validateFamilyId(req.query.family_id);
+
+        var query_array = [
+            ["contact_types","SELECT contact_type_id, contact_type_desc FROM contact_types;"],
+            ["family_members","SELECT person_id, first_name || ' ' || last_name AS name, family_id FROM people WHERE people.family_id = '" + family_id + "' ORDER BY people.head DESC, people.birth_date DESC"],
+            "SELECT family_id FROM families WHERE family_id = '" + family_id + "';"
+        ];
+
+        var object_set = {};
+        var function_array = ["finishRequest","getResults","getResults","checkResults"];
+    }
+
+    function_array.pop();
+    var next_function = function_array.pop();
+    checkResults("addeditcontact", res, query_array, function_array, object_set, eval(next_function));  
 });
 
 app.post('/addeditcontact', function(req, res) {
+    //Check fields for valid content
+    var dataset = {};
+    dataset['invalid_fields'] = [];
+    
+    //Make sure that a type of contact has been provided
+    if (parseInt(req.body.contact_type_id)) {
+        dataset['contact_type_id'] = parseInt(req.body.contact_type_id);
+    } else {
+        dataset['invalid_fields'].push("contact_type_id");
+    }
+    
+    //Make sure that a family contact has been provided
+    if (parseInt(req.body.person_id)) {
+        dataset['person_id'] = parseInt(req.body.person_id);
+    } else {
+        dataset['invalid_fields'].push("person_id");
+    }
 
+    //Check the Contact Date to make sure it's valid
+    var today = new Date();
+    //We'll take dates up to 10 years old just to allow
+    //for retrospective data entry
+    var oldest_accepted_date = parseInt(today.getFullYear()) - 10;
+    var early_date = new Date(oldest_accepted_date, 0, 1);
+    var contact_date = validateDate(req.body.contact_date, early_date);
+    
+    if (contact_date) {
+        dataset['contact_date'] = contact_date;
+    } else {
+        dataset['invalid_fields'].push("contact_date");
+    }
+
+    //Put any provided family id into the contact family field
+    dataset['contact_family'] = validateFamilyId(req.body.contact_family);
+    
+    //If there is an existing assistance id, pass that along
+    if (parseInt(req.body.contact_id) > 0) {
+        dataset['contact_id'] = parseInt(req.body.contact_id);
+    }
+    
+    //Sanitize anything that was submitted in the contact
+    //note blank and determine if there is anything there
+    if (req.body.contact_note != "") {
+        dataset['contact_note'] = sanitizeString(req.body.contact_note);
+    }
+    
+    //If there is nothing in the invalid fieds array, proceed with an
+    //insert or update
+    if (dataset['invalid_fields'].length == 0) {
+     
+        //copy assistance family into the family id variable
+        dataset['family_id'] = dataset['contact_family'];
+        
+        //Start the arrays to be passed
+        var query_array = [];
+        var function_array = ['finishRequest'];
+        
+        //Determine if it is an update or an insert being done
+        if (typeof(dataset['contact_id']) == "undefined") {
+            //Do an insert
+            var fields = "contact_type_id, date, family_id, person_id, contact_note";
+            var values = dataset['contact_type_id'] + ", julianday('" + dataset['contact_date'].sqliteTimestring() + "'), '" + dataset['family_id'] + "', '" + dataset['person_id'] + "'";
+            if (typeof(dataset['contact_note']) != "undefined") {
+                values += ", '" + dataset['contact_note'] + "'";
+            } else {
+                values += ", null";
+            }
+            
+            query_array.push("INSERT INTO contact (" + fields + ") VALUES (" + values + ");");
+            function_array.push("insertUpdate");
+        } else {
+            //Update an existing record
+            var datapairs = "contact_type_id = '" + dataset['contact_type_id'] + "', date = julianday('" + dataset['assistance_date'].sqliteTimestring() + "'), family_id = '" + dataset['family_id'] + "', person_id = '" + dataset['person_id'] + "'";
+            if (typeof(dataset['contact_note']) != "undefined") {
+                datapairs += ", contact_note = '" + dataset['contact_note'] + "'";
+            } else {
+                datapairs += ", contact_note = null";
+            }
+            query_array.push("UPDATE contact SET " + datapairs + " WHERE contact_id = '" + dataset['contact_id'] + "';");
+            function_array.push("insertUpdate");
+        }
+        
+        //Add on a family_id check
+        query_array.push("SELECT family_id FROM families WHERE family_id = '" + dataset['family_id'] + "';");
+        function_array.push("checkResults");
+        
+        //Send everything on its way
+        function_array.pop();
+        var next_function = function_array.pop();
+        checkResults("addeditcontact", res, query_array, function_array, dataset, eval(next_function));
+    } else {
+        //Just send the dataset back
+        var query_array = [
+            ["contact_types","SELECT contact_type_id, contact_type_desc FROM contact_types;"],
+            ["family_members","SELECT person_id, first_name || ' ' || last_name AS name, family_id FROM people WHERE people.family_id = '" + dataset['contact_family'] + "' ORDER BY people.head DESC, people.birth_date DESC"]
+        ];
+        var function_array = ["finishRequest","getResults","getResults"];
+        function_array.pop();
+        var next_function = function_array.pop();
+        getResults("addeditcontact", res, query_array, function_array, dataset, eval(next_function));
+    }
 });
 
 //* Delete Contact Event *//

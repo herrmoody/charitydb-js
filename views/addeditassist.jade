@@ -1,0 +1,91 @@
+doctype 5
+html
+  head
+    title Add/Update Assistance Event
+    link(rel="stylesheet", type="text/css", href="/css/style.css")
+    script(type="text/javascript", src="/js/add.js")
+  body(onload="returnValue('#{family_id}')")
+    div#search_main
+      block main
+        - if ((typeof(family_id) == "undefined") || !(family_id[0].match(/[A-Z]+\d{8}-\d{2}/))) {
+          form(method="POST",action="addeditassist")
+            - if (typeof(assistance) != "undefined") {
+              input(type="hidden",name="assistance_id",value="#{assistance[0].assistance_id}")
+            - }
+            input(type="hidden",name="assistance_family",value="#{family_info[0].family_id}")
+            label
+              |Kind of Service
+                -if ((typeof(invalid_fields) != "undefined") && (invalid_fields.indexOf("service_id") > -1)) {
+                      span(class="error")
+                        |(Please select)
+                - }
+              select(id="service_id",name="service_id")
+                each row in services
+                  - if (typeof(invalid_fields) != "undefined") {
+                    - if (row.service_id == service_id) {
+                      option(value="#{row.service_id}",selected)=row.service_desc
+                    - } else {
+                      option(value="#{row.service_id}")=row.service_desc
+                    - }
+                  - } else if ((typeof(assistance) != "undefined") && (typeof(assistance[0].phone_type_id) != "undefined")) {
+                    -if (row.service_id == assistance[0].service_id) {
+                      option(value="#{row.service_id}",selected)=row.service_desc
+                    -} else {
+                      option(value="#{row.service_id}")=row.service_desc
+                    -}
+                  - } else {
+                    option(value="#{row.service_id}")=row.service_desc
+                  - }
+            label
+              |Assisting Agency
+                -if ((typeof(invalid_fields) != "undefined") && (invalid_fields.indexOf("agency_id") > -1)) {
+                      span(class="error")
+                        |(Please select)
+                - }
+              select(id="agency_id",name="agency_id")
+                each row in agencies
+                  - if (typeof(invalid_fields) != "undefined") {
+                    - if (row.agency_id == agency_id) {
+                      option(value="#{row.agency_id}",selected)=row.agency_name
+                    - } else {
+                      option(value="#{row.agency_id}")=row.service_name
+                    - }
+                  - } else if ((typeof(assistance) != "undefined") && (typeof(assistance[0].agency_id) != "undefined")) {
+                    -if (row.agency_id == assistance[0].agency_id) {
+                      option(value="#{row.agency_id}",selected)=row.agency_name
+                    -} else {
+                      option(value="#{row.agency_id}")=row.agency_name
+                    -}
+                  - } else {
+                    option(value="#{row.agency_id}")=row.agency_name
+                  - }
+            label
+              |Date of Assistance
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (invalid_fields.indexOf("assistance_date") > -1) {
+                  span(class="error")
+                    |(Please provide)
+                  input(type="text",id="assistance_date",name="assistance_date",onBlur="validateDate('assistance_date')")
+                - } else {
+                  input(type="text",id="assistance_date",name="assistance_date",value="#{assistance_date}",onBlur="validateDate('assistance_date')")
+                - }
+              - } else if ((typeof(assistance) != "undefined") && (typeof(assistance[0].assistance_date) != "undefined")) {
+                input(type = "text",id="assistance_date",name="assistance_date",value="#{assistance[0].assistance_date}",onBlur="validateDate('assistance_date')");
+              - } else {
+                input(type="text",id="assistance_date",name="assistance_date",onBlur="validateDate('assistance_date')")
+              - }
+            - if (typeof(invalid_fields) != "undefined") {
+              - if (typeof(phone_number_id) != "undefined") {
+                input(type="submit", value="Update")
+              - } else {
+                input(type="submit", value="Add")
+              -}
+            - } else {
+              -if (typeof(assistance) != "undefined") {
+                input(type="submit", value="Update")
+              - } else {
+                input(type="submit", value="Add")
+              -}
+            - }
+            button(onclick="javascript:window.close()") Cancel
+        - }

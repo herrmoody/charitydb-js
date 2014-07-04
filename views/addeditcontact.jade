@@ -1,0 +1,97 @@
+doctype 5
+html
+  head
+    title Add/Update Contact Event
+    link(rel="stylesheet", type="text/css", href="/css/style.css")
+    script(type="text/javascript", src="/js/add.js")
+  body(onload="returnValue('#{family_id}')")
+    div#search_main
+      block main
+        - if ((typeof(family_id) == "undefined") || !(family_id[0].match(/[A-Z]+\d{8}-\d{2}/))) {
+          form(method="POST",action="addeditcontact")
+            input(type="hidden",name="contact_family",value="#{family_members[0].family_id}")
+            - if ((typeof(contact_info) != "undefined") && (typeof(contact_info[0].contact_id) != "undefined")) {
+              input(type="hidden",name="contact_id",value="#{phone_info[0].contact_id}")
+            - } else if (typeof(contact_id) != "undefined") {
+              input(type="hidden",name="contact_id",value="#{contact_id}")
+            - }
+            label
+              |Contact Date
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (invalid_fields.indexOf("contact_date") > -1) {
+                  span(class="error")
+                    |(Please provide)
+                  input(type="text",id="contact_date",name="contact_date",onBlur="validateDate('contact_date')")
+                - } else {
+                  input(type="text",id="contact_date",name="contact_date",value="#{contact_date}",onBlur="validateDate('contact_date')")
+                - }
+              - } else if ((typeof(contact_info) != "undefined") && (typeof(contact_info[0].contact_date) != "undefined")) {
+                input(type = "text",id="contact_date",name="contact_date",value="#{contact_info[0].contact_date}",onBlur="validateDate('contact_date')");
+              - } else {
+                input(type="text",id="contact_date",name="contact_date",onBlur="validateDate('contact_date')")
+              - }
+            label
+              |Contact Type
+              select(id="contact_type_id",name="contact_type_id")
+                each row in contact_types
+                  - if (typeof(invalid_fields) != "undefined") {
+                    - if (row.contact_type_id == contact_type_id) {
+                      option(value="#{row.contact_type_id}",selected)=row.contact_type_desc
+                    - } else {
+                      option(value="#{row.contact_type_id}")=row.contact_type_desc
+                    - }
+                  - } else if ((typeof(contact_info) != "undefined") && (typeof(contact_info[0].contact_type_id) != "undefined")) {
+                    -if (row.contact_type_id == contact_info[0].contact_type_id) {
+                      option(value="#{row.contact_type_id}",selected)=row.contact_type_desc
+                    -} else {
+                      option(value="#{row.contact_type_id}")=row.contact_type_desc
+                    -}
+                  - } else {
+                    option(value="#{row.contact_type_id}")=row.contact_type_desc
+                  - }
+            label
+              |Primary Family Member Contacted
+              select(id="person_id",name="person_id")
+                each row in family_members
+                  - if (typeof(invalid_fields) != "undefined") {
+                    - if (row.person_id == person_id) {
+                      option(value="#{row.person_id}",selected)=row.name
+                    - } else {
+                      option(value="#{row.person_id}")=row.name
+                    - }
+                  - } else if ((typeof(contact_info) != "undefined") && (typeof(contact_info[0].person_id) != "undefined")) {
+                    -if (row.person_id == contact_info[0].person_id) {
+                      option(value="#{row.person_id}",selected)=row.name
+                    -} else {
+                      option(value="#{row.person_id}")=row.name
+                    -}
+                  - } else {
+                    option(value="#{row.person_id}")=row.name
+                  - }
+              label
+                |Note:
+                textarea(name="contact_note")
+                  - if (typeof(invalid_fields) != "undefined") {                
+                    - if (typeof(contact_note) != "undefined") {
+                      |#{contact_note}
+                    - }
+                  - } else {
+                  - if ((typeof(contact_info) != "undefined") && (contact_info[0].contact_note != null)) {
+                    |#{contact_info[0].contact_note}
+                  - }
+                - }
+              - if (typeof(invalid_fields) != "undefined") {
+                - if (typeof(contact_id) != "undefined") {
+                  input(type="submit", value="Update")
+                - } else {
+                  input(type="submit", value="Add")
+                -}
+              - } else {
+                -if (typeof(contact_info) != "undefined") {
+                  input(type="submit", value="Update")
+                - } else {
+                  input(type="submit", value="Add")
+                -}
+              - }
+            button(onclick="javascript:window.close()") Cancel
+        - }
